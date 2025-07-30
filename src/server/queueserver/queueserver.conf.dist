@@ -1,13 +1,13 @@
 ###############################################
-# Trinity Core Auth Server configuration file #
+# Trinity Core Queue Server configuration file #
 ###############################################
-[authserver]
+[queueserver]
 
 ###################################################################################################
 # SECTION INDEX
 #
 #    EXAMPLE CONFIG
-#    AUTH SERVER SETTINGS
+#    QUEUE SERVER SETTINGS
 #    MYSQL SETTINGS
 #    CRYPTOGRAPHY
 #    UPDATE SETTINGS
@@ -31,7 +31,7 @@
 ###################################################################################################
 
 ###################################################################################################
-# AUTH SERVER SETTINGS
+# QUEUE SERVER SETTINGS
 #
 #    LogsDir
 #        Description: Logs directory setting.
@@ -51,9 +51,17 @@ MaxPingTime = 30
 #
 #    RealmServerPort
 #        Description: TCP port to reach the auth server.
-#        Default:     3724
+#        Default:     3800
 
-RealmServerPort = 3724
+RealmServerPort = 3800
+
+#
+#    RealmID
+#        Description: ID of the Realm using this config.
+#        Important:   RealmID must match the realmlist inside the auth database.
+#        Default:     1
+
+RealmID = 1
 
 #
 #
@@ -62,14 +70,6 @@ RealmServerPort = 3724
 #        Default:     "0.0.0.0" - (Bind to all IPs on the system)
 
 BindIP = "0.0.0.0"
-
-#
-#    PidFile
-#        Description: Auth server PID file.
-#        Example:     "./authserver.pid"  - (Enabled)
-#        Default:     ""                  - (Disabled)
-
-PidFile = ""
 
 #
 #    UseProcessors
@@ -89,72 +89,6 @@ UseProcessors = 0
 #                     1 - (High)
 
 ProcessPriority = 0
-
-#
-#    RealmsStateUpdateDelay
-#        Description: Time (in seconds) between realm list updates.
-#        Default:     20 - (Enabled)
-#                     0  - (Disabled)
-
-RealmsStateUpdateDelay = 20
-
-#
-#    WrongPass.MaxCount
-#        Description: Number of login attempts with wrong password before the account or IP will be
-#                     banned.
-#        Default:     0  - (Disabled)
-#                     1+ - (Enabled)
-
-WrongPass.MaxCount = 0
-
-#
-#    WrongPass.BanTime
-#        Description: Time (in seconds) for banning account or IP for invalid login attempts.
-#        Default:     600 - (10 minutes)
-#                     0   - (Permanent ban)
-
-WrongPass.BanTime = 600
-
-#
-#    WrongPass.BanType
-#        Description: Ban type for invalid login attempts.
-#        Default:     0 - (Ban IP)
-#                     1 - (Ban Account)
-
-WrongPass.BanType = 0
-
-#
-#    WrongPass.Logging
-#        Description: Additionally log attempted wrong password logging
-#        Default:     0 - (Disabled)
-#                     1 - (Enabled)
-
-WrongPass.Logging = 0
-
-#
-#    StrictVersionCheck
-#        Description: Prevent modified clients from connecting
-#        Default:     0 - (Disabled)
-#                     1 - (Enabled)
-#
-
-StrictVersionCheck = 0
-
-#
-#    ForcedVersion
-#        Description: Force a Build Check.
-#        Default:     0 - (Disabled)
-#                     12341+ - (Enabled)
-#
-
-ForcedVersion = 12341
-
-#
-#    BanExpiryCheckInterval
-#        Description: Time (in seconds) between checks for expired bans
-#        Default:     60
-
-BanExpiryCheckInterval = 60
 
 #
 #    SourceDirectory
@@ -272,7 +206,7 @@ Updates.EnableDatabases = 0
 #        Default:     1 - (Enabled)
 #                     0 - (Disabled)
 
-Updates.AutoSetup   = 1
+Updates.AutoSetup   = 0
 
 #
 #    Updates.Redundancy
@@ -281,7 +215,7 @@ Updates.AutoSetup   = 1
 #        Default:     1 - (Enabled)
 #                     0 - (Disabled)
 
-Updates.Redundancy  = 1
+Updates.Redundancy  = 0
 
 #
 #    Updates.ArchivedRedundancy
@@ -382,7 +316,7 @@ Updates.CleanDeadRefMaxCount = 3
 #
 
 Appender.Console=1,2,0
-Appender.Auth=2,2,0,Auth.log,w
+Appender.Queue=2,2,0,Queue.log,w
 
 #  Logger config values: Given a logger "name"
 #    Logger.name
@@ -402,7 +336,7 @@ Appender.Auth=2,2,0,Auth.log,w
 #                     (Using spaces as separator).
 #
 
-Logger.root=3,Console Auth
+Logger.root=3,Console Queue
 
 #
 ###################################################################################################

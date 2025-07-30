@@ -65,6 +65,7 @@ struct ClientPktHeader
 #pragma pack(pop)
 
 struct AuthSession;
+struct RedirectionSession;
 
 class TC_GAME_API WorldSocket : public Socket<WorldSocket>
 {
@@ -107,6 +108,8 @@ private:
     /// sends and logs network.opcode without accessing WorldSession
     void SendPacketAndLogOpcode(WorldPacket const& packet);
     void HandleSendAuthSession();
+    void HandleRedirectionAuthProof(WorldPacket& recvPacket);
+    void HandleRedirectionAuthProofCallback(std::shared_ptr<RedirectionSession> authSession, PreparedQueryResult result);
     void HandleAuthSession(WorldPacket& recvPacket);
     void HandleAuthSessionCallback(std::shared_ptr<AuthSession> authSession, PreparedQueryResult result);
     void LoadSessionPermissionsCallback(PreparedQueryResult result);

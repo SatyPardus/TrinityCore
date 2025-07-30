@@ -80,6 +80,8 @@ void KeepDatabaseAliveHandler(std::weak_ptr<Trinity::Asio::DeadlineTimer> dbPing
 variables_map GetConsoleArguments(int argc, char** argv, fs::path& configFile, fs::path& configDir,
                                   std::string& winServiceAction);
 
+Realm realm;
+
 int main(int argc, char** argv)
 {
     // @tswow-begin
@@ -214,6 +216,12 @@ int main(int argc, char** argv)
     }
 #endif
 
+    // Set server online (allow connecting now)
+    LoginDatabase.DirectPExecute("UPDATE realmlist SET flag = flag & ~{}, population = 0 WHERE id = '{}'",
+                                 REALM_FLAG_OFFLINE, realm.Id.Realm);
+    realm.PopulationLevel = 0.0f;
+    realm.Flags           = RealmFlags(realm.Flags & ~uint32(REALM_FLAG_OFFLINE));
+
     // Start the io service worker loop
     ioContext->run();
 
@@ -239,7 +247,16 @@ bool StartDB()
         return false;
 
     TC_LOG_INFO("server.queueserver", "Started queue database connection pool.");
-    sLog->SetRealmId(0); // Enables DB appenders when realm is set.
+
+    ///- Get the realm Id from the configuration file
+    realm.Id.Realm = sConfigMgr->GetIntDefault("RealmID", 0);
+    if (!realm.Id.Realm)
+    {
+        TC_LOG_ERROR("server.worldserver", "Realm ID not defined in configuration file");
+        return false;
+    }
+
+    TC_LOG_INFO("server.worldserver", "Realm running as realm ID {}", realm.Id.Realm);
     return true;
 }
 

@@ -1425,7 +1425,7 @@ void OpcodeTable::Initialize()
     /*0x50E*/ DEFINE_HANDLER(CMSG_REDIRECTION_FAILED,                      STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x50F*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SUSPEND_COMMS,             STATUS_NEVER);
     /*0x510*/ DEFINE_HANDLER(CMSG_SUSPEND_COMMS_ACK,                       STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
-    /*0x511*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_FORCE_SEND_QUEUED_PACKETS, STATUS_NEVER);
+    /*0x511*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_RESUME_COMMS, STATUS_NEVER);
     /*0x512*/ DEFINE_HANDLER(CMSG_REDIRECTION_AUTH_PROOF,                  STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::HandleRedirectionAuthProof      );
     /*0x513*/ DEFINE_HANDLER(CMSG_DROP_NEW_CONNECTION,                     STATUS_NEVER,    PROCESS_INPLACE,      &WorldSession::Handle_NULL                     );
     /*0x514*/ DEFINE_SERVER_OPCODE_HANDLER(SMSG_SEND_ALL_COMBAT_LOG,       STATUS_NEVER);

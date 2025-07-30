@@ -234,17 +234,24 @@ bool WorldSocket::ReadHeaderHandler()
 
 struct AuthSession
 {
-    uint32 BattlegroupID = 0;
-    uint32 LoginServerType = 0;
-    uint32 RealmID = 0;
-    uint32 Build = 0;
-    std::array<uint8, 4> LocalChallenge = {};
-    uint32 LoginServerID = 0;
-    uint32 RegionID = 0;
-    uint64 DosResponse = 0;
+    uint32 BattlegroupID                 = 0;
+    uint32 LoginServerType               = 0;
+    uint32 RealmID                       = 0;
+    uint32 Build                         = 0;
+    std::array<uint8, 4> LocalChallenge  = {};
+    uint32 LoginServerID                 = 0;
+    uint32 RegionID                      = 0;
+    uint64 DosResponse                   = 0;
     Trinity::Crypto::SHA1::Digest Digest = {};
     std::string Account;
     ByteBuffer AddonInfo;
+};
+
+struct RedirectionSession
+{
+    std::string Account;
+    uint64 DosResponse                   = 0;
+    Trinity::Crypto::SHA1::Digest Digest = {};
 };
 
 struct AccountInfo
@@ -356,6 +363,38 @@ WorldSocket::ReadDataHandlerResult WorldSocket::ReadDataHandler()
             TC_LOG_ERROR("network", "WorldSocket::ReadDataHandler(): client {} sent malformed CMSG_AUTH_SESSION", GetRemoteIpAddress().to_string());
             return ReadDataHandlerResult::Error;
         }
+        case CMSG_REDIRECTION_AUTH_PROOF:
+        {
+            LogOpcodeText(opcode, sessionGuard);
+            if (_authed)
+            {
+                // locking just to safely log offending user is probably overkill but we are disconnecting him anyway
+                if (sessionGuard.try_lock())
+                    TC_LOG_ERROR("network",
+                                 "WorldSocket::ProcessIncoming: received duplicate CMSG_REDIRECTION_AUTH_PROOF from {}",
+                                 _worldSession->GetPlayerInfo());
+                return ReadDataHandlerResult::Error;
+            }
+            if (sWorld->GetPlayerAmountLimitNoQueue())
+            {
+                uint32 Sessions = sWorld->GetActiveAndQueuedSessionCount();
+                uint32 pLimit   = sWorld->GetPlayerAmountLimit();
+                if (Sessions >= pLimit)
+                    return ReadDataHandlerResult::Error;
+            }
+
+            try
+            {
+                HandleRedirectionAuthProof(packet);
+                return ReadDataHandlerResult::WaitingForQuery;
+            }
+            catch (ByteBufferException const&)
+            {
+            }
+            TC_LOG_ERROR("network", "WorldSocket::ReadDataHandler(): client {} sent malformed CMSG_AUTH_SESSION",
+                         GetRemoteIpAddress().to_string());
+            return ReadDataHandlerResult::Error;
+        }
         case CMSG_KEEP_ALIVE: // todo: handle this packet in the same way of CMSG_TIME_SYNC_RESP
             sessionGuard.lock();
             LogOpcodeText(opcode, sessionGuard);
@@ -431,6 +470,203 @@ void WorldSocket::SendPacket(WorldPacket const& packet)
         sPacketLog->LogPacket(packet, SERVER_TO_CLIENT, GetRemoteIpAddress(), GetRemotePort());
 
     _bufferQueue.Enqueue(new EncryptablePacket(packet, _authCrypt.IsInitialized()));
+}
+
+void WorldSocket::HandleRedirectionAuthProof(WorldPacket& recvPacket)
+{
+    std::shared_ptr<RedirectionSession> redirectionSession = std::make_shared<RedirectionSession>();
+
+    recvPacket >> redirectionSession->Account;
+    recvPacket >> redirectionSession->DosResponse;
+    recvPacket.read(redirectionSession->Digest);
+
+    // Get the account information from the auth database
+    LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_INFO_BY_NAME);
+    stmt->setInt32(0, int32(realm.Id.Realm));
+    stmt->setString(1, redirectionSession->Account);
+
+    _queryProcessor.AddCallback(LoginDatabase.AsyncQuery(stmt).WithPreparedCallback(
+        [this, redirectionSession = std::move(redirectionSession)](PreparedQueryResult result) mutable
+        { HandleRedirectionAuthProofCallback(std::move(redirectionSession), std::move(result)); }));
+}
+
+void WorldSocket::HandleRedirectionAuthProofCallback(std::shared_ptr<RedirectionSession> redirectionSession,
+                                            PreparedQueryResult result)
+{
+    // Stop if the account is not found
+    if (!result)
+    {
+        // We can not log here, as we do not know the account. Thus, no accountId.
+        SendAuthResponseError(AUTH_UNKNOWN_ACCOUNT);
+        TC_LOG_ERROR("network", "WorldSocket::HandleRedirectionAuthProofCallback: Sent Redirection Response (unknown account).");
+        DelayedCloseSocket();
+        return;
+    }
+
+    AccountInfo account(result->Fetch());
+
+    // For hook purposes, we get Remoteaddress at this point.
+    std::string address = GetRemoteIpAddress().to_string();
+
+    LoginDatabasePreparedStatement* stmt = nullptr;
+
+    if (sWorld->getBoolConfig(CONFIG_ALLOW_LOGGING_IP_ADDRESSES_IN_DATABASE))
+    {
+        // As we don't know if attempted login process by ip works, we update last_attempt_ip right away
+        stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_LAST_ATTEMPT_IP);
+        stmt->setString(0, address);
+        stmt->setString(1, redirectionSession->Account);
+        LoginDatabase.Execute(stmt);
+        // This also allows to check for possible "hack" attempts on account
+    }
+
+    // even if auth credentials are bad, try using the session key we have - client cannot read auth response error
+    // without it
+    _authCrypt.Init(account.SessionKey);
+
+    // First reject the connection if packet contains invalid data or realm state doesn't allow logging in
+    if (sWorld->IsClosed())
+    {
+        SendAuthResponseError(AUTH_REJECT);
+        TC_LOG_ERROR("network", "WorldSocket::HandleRedirectionAuthProofCallback: World closed, denying client ({}).",
+                     GetRemoteIpAddress().to_string());
+        DelayedCloseSocket();
+        return;
+    }
+
+    // Must be done before WorldSession is created
+    bool wardenActive = sWorld->getBoolConfig(CONFIG_WARDEN_ENABLED);
+    if (wardenActive && !ClientBuild::Platform::IsValid(account.OS))
+    {
+        SendAuthResponseError(AUTH_REJECT);
+        TC_LOG_ERROR("network",
+                     "WorldSocket::HandleRedirectionAuthProofCallback: Client {} attempted to log in using invalid client OS ({}).",
+                     address, account.OS);
+        DelayedCloseSocket();
+        return;
+    }
+
+    // Check that Key and account name are the same on client and server
+    Trinity::Crypto::SHA1 sha;
+    sha.UpdateData(redirectionSession->Account);
+    sha.UpdateData(account.SessionKey);
+    sha.UpdateData(_authSeed);
+    sha.Finalize();
+
+    if (sha.GetDigest() != redirectionSession->Digest)
+    {
+        SendAuthResponseError(AUTH_FAILED);
+        TC_LOG_ERROR("network",
+                     "WorldSocket::HandleRedirectionAuthProofCallback: Authentication failed for account: {} ('{}') address: {}",
+                     account.Id, redirectionSession->Account, address);
+        DelayedCloseSocket();
+        return;
+    }
+
+    if (IpLocationRecord const* location = sIPLocation->GetLocationRecord(address))
+        _ipCountry = location->CountryCode;
+
+    ///- Re-check ip locking (same check as in auth).
+    if (account.IsLockedToIP)
+    {
+        if (account.LastIP != address)
+        {
+            SendAuthResponseError(AUTH_FAILED);
+            TC_LOG_DEBUG(
+                "network",
+                "WorldSocket::HandleRedirectionAuthProofCallback: Sent Auth Response (Account IP differs. Original IP: {}, new IP: {}).",
+                account.LastIP, address);
+            // We could log on hook only instead of an additional db log, however action logger is config based. Better
+            // keep DB logging as well
+            sScriptMgr->OnFailedAccountLogin(account.Id);
+            DelayedCloseSocket();
+            return;
+        }
+    }
+    else if (!account.LockCountry.empty() && account.LockCountry != "00" && !_ipCountry.empty())
+    {
+        if (account.LockCountry != _ipCountry)
+        {
+            SendAuthResponseError(AUTH_FAILED);
+            TC_LOG_DEBUG("network",
+                         "WorldSocket::HandleRedirectionAuthProofCallback: Sent Auth Response (Account country differs. Original "
+                         "country: {}, new country: {}).",
+                         account.LockCountry, _ipCountry);
+            // We could log on hook only instead of an additional db log, however action logger is config based. Better
+            // keep DB logging as well
+            sScriptMgr->OnFailedAccountLogin(account.Id);
+            DelayedCloseSocket();
+            return;
+        }
+    }
+
+    int64 mutetime = account.MuteTime;
+    //! Negative mutetime indicates amount of seconds to be muted effective on next login - which is now.
+    if (mutetime < 0)
+    {
+        mutetime = GameTime::GetGameTime() + std::llabs(mutetime);
+
+        stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_MUTE_TIME_LOGIN);
+        stmt->setInt64(0, mutetime);
+        stmt->setUInt32(1, account.Id);
+        LoginDatabase.Execute(stmt);
+    }
+
+    if (account.IsBanned)
+    {
+        SendAuthResponseError(AUTH_BANNED);
+        TC_LOG_ERROR("network", "WorldSocket::HandleRedirectionAuthProofCallback: Sent Auth Response (Account banned).");
+        sScriptMgr->OnFailedAccountLogin(account.Id);
+        DelayedCloseSocket();
+        return;
+    }
+
+    // Check locked state for server
+    AccountTypes allowedAccountType = sWorld->GetPlayerSecurityLimit();
+    TC_LOG_DEBUG("network", "Allowed Level: {} Player Level {}", allowedAccountType, account.Security);
+    if (allowedAccountType > SEC_PLAYER && account.Security < allowedAccountType)
+    {
+        SendAuthResponseError(AUTH_UNAVAILABLE);
+        TC_LOG_DEBUG("network",
+                     "WorldSocket::HandleRedirectionAuthProofCallback: User tries to login but his security level is not enough");
+        sScriptMgr->OnFailedAccountLogin(account.Id);
+        DelayedCloseSocket();
+        return;
+    }
+
+    TC_LOG_DEBUG("network", "WorldSocket::HandleRedirectionAuthProofCallback: Client '{}' authenticated successfully from {}.",
+                 redirectionSession->Account, address);
+
+    if (sWorld->getBoolConfig(CONFIG_ALLOW_LOGGING_IP_ADDRESSES_IN_DATABASE))
+    {
+        // Update the last_ip in the database as it was successful for login
+        stmt = LoginDatabase.GetPreparedStatement(LOGIN_UPD_LAST_IP);
+
+        stmt->setString(0, address);
+        stmt->setString(1, redirectionSession->Account);
+
+        LoginDatabase.Execute(stmt);
+    }
+
+    WorldPacket authPkt(SMSG_RESUME_COMMS, 0);
+    SendPacket(authPkt);
+
+    // At this point, we can safely hook a successful login
+    sScriptMgr->OnAccountLogin(account.Id);
+
+    _authed       = true;
+    _worldSession = new WorldSession(account.Id, std::move(redirectionSession->Account), shared_from_this(),
+                                     account.Security,
+                                     account.Expansion, mutetime, account.TimezoneOffset, account.Locale,
+                                     account.Recruiter, account.IsRectuiter);
+
+    // Initialize Warden system only if it is enabled by config
+    if (wardenActive)
+        _worldSession->InitWarden(account.SessionKey, account.OS);
+
+    _queryProcessor.AddCallback(_worldSession->LoadPermissionsAsync().WithPreparedCallback(
+        std::bind(&WorldSocket::LoadSessionPermissionsCallback, this, std::placeholders::_1)));
+    AsyncRead();
 }
 
 void WorldSocket::HandleAuthSession(WorldPacket& recvPacket)
