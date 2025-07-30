@@ -768,6 +768,12 @@ void WorldSession::Handle_Deprecated(WorldPacket& recvPacket)
         , GetOpcodeNameForLogging(static_cast<OpcodeClient>(recvPacket.GetOpcode())), GetPlayerInfo());
 }
 
+void WorldSession::HandleRedirectionAuthProof(WorldPacket& recvPacket)
+{
+    TC_LOG_ERROR("network.opcode", "Received HandleRedirectionAuthProof opcode {} from {}",
+                 GetOpcodeNameForLogging(static_cast<OpcodeServer>(recvPacket.GetOpcode())), GetPlayerInfo());
+}
+
 void WorldSession::SendAuthWaitQueue(uint32 position)
 {
     if (position == 0)
