@@ -43,6 +43,7 @@
 #include "PoolMgr.h"
 #include "ScriptMgr.h"
 #include "Transport.h"
+#include "UpdateTime.h"
 #include "Vehicle.h"
 #include "VMapFactory.h"
 #include "VMapManager2.h"
@@ -282,6 +283,24 @@ i_scriptLock(false), _respawnTimes(std::make_unique<RespawnListContainer>())
     // @tswow-end
 
     MMAP::MMapFactory::createOrGetMMapManager()->loadMapInstance(sWorld->GetDataPath(), GetId(), instanceOrPartitionId);
+}
+
+float Map::GetDiffScaleFactor() const
+{
+    float baseLineDiff = 150.0f; // A normal diff for an active server
+    return std::min(std::max(sWorldUpdateTime.GetLastUpdateTime() / baseLineDiff, 1.0f), 6.0f); // Diff scale 1x->6x
+}
+
+float Map::GetVisibilityRange() const
+{
+    // Scale range from full down to half based on scaleFactor (1x->6x becomes 1.0->0.5)
+    float rangeScale = 1.0f - ((GetDiffScaleFactor() - 1.0f) / 10.0f);
+    return m_VisibleDistance * rangeScale;
+}
+
+float Map::GetVisibilityNotifyPeriod() const
+{
+    return m_VisibilityNotifyPeriod * GetDiffScaleFactor();
 }
 
 void Map::InitVisibilityDistance()
@@ -836,7 +855,7 @@ void Map::Update(uint32 t_diff)
     }
 
     /// process any due respawns
-    ProcessRespawns();
+    ProcessRespawns(t_diff);
 
     /// update active cells around players and active objects
     resetMarkedCells();
@@ -865,12 +884,15 @@ void Map::Update(uint32 t_diff)
             VisitNearbyCellsOf(player, grid_object_update, world_object_update);
 
             // If player is using far sight or mind vision, visit that object too
-            if (WorldObject* viewPoint = player->GetViewpoint())
+            if (WorldObject* viewPoint = player->GetViewpoint()) {
+                ZoneScopedN("Map::Update::Players::VisitNearbyCellsOf")
                 VisitNearbyCellsOf(viewPoint, grid_object_update, world_object_update);
+            }
 
             // Handle updates for creatures in combat with player and are more than 60 yards away
             if (player->IsInCombat())
             {
+                ZoneScopedN("Map::Update::Players::Combat")
                 std::vector<Unit*> toVisit;
                 for (auto const& pair : player->GetCombatManager().GetPvECombatRefs())
                     if (Creature* unit = pair.second->GetOther(player)->ToCreature())
@@ -881,6 +903,7 @@ void Map::Update(uint32 t_diff)
             }
 
             { // Update any creatures that own auras the player has applications of
+                ZoneScopedN("Map::Update::Players::Auras")
                 std::unordered_set<Unit*> toVisit;
                 for (std::pair<uint32, AuraApplication*> pair : player->GetAppliedAuras())
                 {
@@ -893,6 +916,7 @@ void Map::Update(uint32 t_diff)
             }
 
             { // Update player's summons
+                ZoneScopedN("Map::Update::Players::Summons")
                 std::vector<Unit*> toVisit;
 
                 // Totems
@@ -2962,13 +2986,15 @@ void Map::DoRespawn(SpawnObjectType type, ObjectGuid::LowType spawnId, uint32 gr
     }
 }
 
-void Map::ProcessRespawns()
+void Map::ProcessRespawns(uint32 t_diff)
 {
     ZoneScopedN("Map::ProcessRespawns")
 
     time_t now = GameTime::GetGameTime();
     uint32 count = 0;
-    uint32 maxCount = sWorld->getIntConfig(CONFIG_MAX_RESPAWN_COUNT_ON_UPDATE);
+    float baseLineDiff = 300.0f; // A normal diff for an active server
+    uint32 scaleFactor = (uint32)std::round(std::min(std::max(t_diff / baseLineDiff, 1.0f), 5.0f)); // Diff scale 1x->5x
+    uint32 maxCount = sWorld->getIntConfig(CONFIG_MAX_RESPAWN_COUNT_ON_UPDATE) * scaleFactor;
     while (!_respawnTimes->empty())
     {
         RespawnInfoWithHandle* next = _respawnTimes->top();
