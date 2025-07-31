@@ -15,9 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "Common.h"
-#include "Configuration/Config.h"
-#include "Database/DatabaseEnv.h"
-#include "Log.h"
-#include "QueueSession.h"
 #include "QueueMgr.h"
+#include <Realm.h>
+
+Realm realm;

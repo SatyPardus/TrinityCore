@@ -67,6 +67,16 @@
 RealmID = 1
 
 #
+#    AllowDirectConnections
+#        Description: Does this server allow direct connections?
+#                     Meaning connections not done over the redirection packet.
+#        Important:   This is not a "optional" feature. If this is enabled and you try
+#                     to redirect a player, their client will crash.
+#        Default:     true
+
+AllowDirectConnections = true
+
+#
 #    DataDir
 #        Description: Data directory setting.
 #        Important:   DataDir needs to be quoted, as the string might contain space characters.

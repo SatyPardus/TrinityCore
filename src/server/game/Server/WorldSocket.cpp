@@ -131,6 +131,15 @@ bool WorldSocket::Update()
 
 void WorldSocket::HandleSendAuthSession()
 {
+    // If direct connections are not allowed, we only allow redirections.
+    // You can only choose one, as this crashes the client if not redirected.
+    // TODO - Maybe check if the IP was redirected instead of doing a config value.
+    if (!sWorld->getBoolConfig(CONFIG_CONNECTION_ALLOW_DIRECT))
+    {
+        WorldPacket packet2(SMSG_RESUME_COMMS, 0);
+        SendPacketAndLogOpcode(packet2);
+    }
+
     WorldPacket packet(SMSG_AUTH_CHALLENGE, 40);
     packet << uint32(1);                                    // 1...31
     packet.append(_authSeed);
@@ -648,9 +657,6 @@ void WorldSocket::HandleRedirectionAuthProofCallback(std::shared_ptr<Redirection
         LoginDatabase.Execute(stmt);
     }
 
-    WorldPacket authPkt(SMSG_RESUME_COMMS, 0);
-    SendPacket(authPkt);
-
     // At this point, we can safely hook a successful login
     sScriptMgr->OnAccountLogin(account.Id);
 
@@ -671,6 +677,15 @@ void WorldSocket::HandleRedirectionAuthProofCallback(std::shared_ptr<Redirection
 
 void WorldSocket::HandleAuthSession(WorldPacket& recvPacket)
 {
+    if (!sWorld->getBoolConfig(CONFIG_CONNECTION_ALLOW_DIRECT))
+    {
+        SendAuthResponseError(AUTH_REJECT);
+        TC_LOG_ERROR("network", "WorldSocket::HandleAuthSession: Direct connection, denying client ({}).",
+                     GetRemoteIpAddress().to_string());
+        DelayedCloseSocket();
+        return;
+    }
+
     std::shared_ptr<AuthSession> authSession = std::make_shared<AuthSession>();
 
     // Read the content of the packet

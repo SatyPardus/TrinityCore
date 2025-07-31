@@ -685,6 +685,9 @@ bool StartDB()
         return false;
     }
 
+    // TODO need to add the realm ID to the event queue std::to_string(realm.Id.Realm)
+    boost::interprocess::message_queue::remove("game_event_queue");
+
     TC_LOG_INFO("server.worldserver", "Realm running as realm ID {}", realm.Id.Realm);
 
     ///- Clean the database before starting

@@ -98,6 +98,7 @@
 #include "WeatherMgr.h"
 #include "WhoListStorage.h"
 #include "WorldSession.h"
+#include <boost/interprocess/ipc/message_queue.hpp>
 
 #include <boost/asio/ip/address.hpp>
 
@@ -121,7 +122,8 @@ TC_GAME_API int32 World::m_visibility_notify_periodInBG         = DEFAULT_VISIBI
 TC_GAME_API int32 World::m_visibility_notify_periodInArenas     = DEFAULT_VISIBILITY_NOTIFY_PERIOD;
 
 /// World constructor
-World::World()
+// TODO need to add the realm ID to the event queue std::to_string(realm.Id.Realm)
+World::World() : _mq(boost::interprocess::open_or_create, "game_event_queue", 100, sizeof(int))
 {
     m_playerLimit = 0;
     m_allowedSecurityLevel = SEC_PLAYER;
@@ -383,10 +385,14 @@ void World::AddSession_(WorldSession* s)
 
     UpdateMaxSessionCounters();
 
+    // Update the queueserver with the current session count
+    uint32 sessionCount = GetActiveSessionCount();
+    _mq.send(&sessionCount, sizeof(sessionCount), 0);
+
     // Updates the population
     if (pLimit > 0)
     {
-        float popu = (float)GetActiveSessionCount();              // updated number of users on the server
+        float popu = (float)sessionCount; // updated number of users on the server
         popu /= pLimit;
         popu *= 2;
         TC_LOG_INFO("misc", "Server Population ({}).", popu);
@@ -465,6 +471,9 @@ bool World::RemoveQueuedPlayer(WorldSession* sess)
     if (!found && sessions)
         --sessions;
 
+    // Update the queueserver with the current session count
+    _mq.send(&sessions, sizeof(sessions), 0);
+
     // accept first in queue
     if ((!m_playerLimit || sessions < m_playerLimit) && !m_QueuedPlayer.empty())
     {
@@ -506,6 +515,9 @@ void World::LoadConfigSettings(bool reload)
     // @tswow-begin
     m_bool_configs[CONFIG_TSWOW_LUA_ENABLED] = sConfigMgr->GetBoolDefault("TSWoW.EnableLua", true);
     // @tswow-en
+
+    //- Should we allow direct connections? Otherwise we only allow redirections (if disabled, no redirection possible)
+    m_bool_configs[CONFIG_CONNECTION_ALLOW_DIRECT] = sConfigMgr->GetBoolDefault("AllowDirectConnections", true);
 
     ///- Read the player limit and the Message of the day from the config file
     SetPlayerAmountLimit(sConfigMgr->GetIntDefault("PlayerLimit", 100));

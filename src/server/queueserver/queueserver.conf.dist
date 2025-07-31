@@ -50,7 +50,7 @@ MaxPingTime = 30
 
 #
 #    RealmServerPort
-#        Description: TCP port to reach the auth server.
+#        Description: TCP port to reach the queue server.
 #        Default:     3800
 
 RealmServerPort = 3800
@@ -66,7 +66,7 @@ RealmID = 1
 #
 #
 #    BindIP
-#        Description: Bind auth server to IP/hostname
+#        Description: Bind queue server to IP/hostname
 #        Default:     "0.0.0.0" - (Bind to all IPs on the system)
 
 BindIP = "0.0.0.0"
@@ -147,7 +147,7 @@ AllowLoggingIPAddressesInDatabase = 1
 #    The SSL option will enable TLS when connecting to the specified database. If not provided or
 #    any value other than 'ssl' is set, TLS will not be used.
 
-LoginDatabaseInfo = "127.0.0.1;3306;trinity;trinity;auth"
+LoginDatabaseInfo = "127.0.0.1;3306;tswow;password;auth"
 
 #
 #    LoginDatabase.WorkerThreads

@@ -34,6 +34,7 @@
 #include <list>
 #include <map>
 #include <unordered_map>
+#include <boost/interprocess/ipc/message_queue.hpp>
 
 class Player;
 class WorldPacket;
@@ -233,6 +234,7 @@ enum WorldBoolConfigs : uint32
     CONFIG_VMAP_ENHANCED_LOS_PVP,
     CONFIG_VMAP_ENHANCED_LOS_WORLD,
     /** @epoch-end */
+    CONFIG_CONNECTION_ALLOW_DIRECT,
     BOOL_CONFIG_VALUE_COUNT
 };
 
@@ -971,6 +973,8 @@ class TC_GAME_API World
         bool _guidAlert;
         uint32 _warnDiff;
         time_t _warnShutdownTime;
+
+        boost::interprocess::message_queue _mq;
 
     friend class debug_commandscript;
 };

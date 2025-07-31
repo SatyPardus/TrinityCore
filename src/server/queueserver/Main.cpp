@@ -17,6 +17,7 @@
 
 #include "AppenderDB.h"
 #include "QueueSession.h"
+#include "QueueMgr.h"
 #include "Banner.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
@@ -41,6 +42,10 @@
 #include <openssl/opensslv.h>
 #include <iostream>
 #include <csignal>
+#include <boost/interprocess/ipc/message_queue.hpp>
+#include <thread>
+#include <atomic>
+#include <functional>
 
 using boost::asio::ip::tcp;
 using namespace boost::program_options;
@@ -80,7 +85,36 @@ void KeepDatabaseAliveHandler(std::weak_ptr<Trinity::Asio::DeadlineTimer> dbPing
 variables_map GetConsoleArguments(int argc, char** argv, fs::path& configFile, fs::path& configDir,
                                   std::string& winServiceAction);
 
-Realm realm;
+std::atomic<bool> keep_running{true};
+
+void run_message_loop(std::function<void(int)> on_message)
+{
+    using namespace boost::interprocess;
+    message_queue mq(open_or_create, "game_event_queue", 100, sizeof(int));
+
+    while (keep_running)
+    {
+        int msg;
+        unsigned int priority;
+        message_queue::size_type received_size;
+
+        try
+        {
+            if (mq.try_receive(&msg, sizeof(msg), received_size, priority))
+            {
+                on_message(msg);
+            }
+            else
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+        catch (interprocess_exception& ex)
+        {
+            std::cerr << "IPC Error: " << ex.what() << "\n";
+        }
+    }
+}
 
 int main(int argc, char** argv)
 {
@@ -222,6 +256,8 @@ int main(int argc, char** argv)
     realm.PopulationLevel = 0.0f;
     realm.Flags           = RealmFlags(realm.Flags & ~uint32(REALM_FLAG_OFFLINE));
 
+    std::thread receiver_thread(run_message_loop, [](int msg) { std::cout << "Async received: " << msg << "\n"; });
+
     // Start the io service worker loop
     ioContext->run();
 
@@ -230,6 +266,8 @@ int main(int argc, char** argv)
     TC_LOG_INFO("server.queueserver", "Halting process...");
 
     signals.cancel();
+    keep_running = false;
+    receiver_thread.join();
 
     return 0;
 }

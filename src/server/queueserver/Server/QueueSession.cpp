@@ -257,6 +257,9 @@ QueueSession::ReadDataHandlerResult QueueSession::ReadDataHandler()
             return ReadDataHandlerResult::Error;
         }
         case CMSG_KEEP_ALIVE: // todo: handle this packet in the same way of CMSG_TIME_SYNC_RESP
+            printf("Hello keep alive\n");
+            return ReadDataHandlerResult::Ok;
+        case CMSG_SUSPEND_COMMS_ACK:
             return ReadDataHandlerResult::Ok;
     }
 
@@ -323,7 +326,7 @@ void QueueSession::HandleAuthSession(WorldPacket& recvPacket)
 
     // Get the account information from the auth database
     LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_ACCOUNT_INFO_BY_NAME);
-    stmt->setInt32(0, 1); // TODO
+    stmt->setInt32(0, int32(realm.Id.Realm));
     stmt->setString(1, authSession->Account);
 
     _queryProcessor.AddCallback(LoginDatabase.AsyncQuery(stmt).WithPreparedCallback(
@@ -355,7 +358,8 @@ void QueueSession::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authSe
     _authCrypt.Init(account.SessionKey);
 
     // First reject the connection if packet contains invalid data or realm state doesn't allow logging in
-    // TODO
+    // TODO should we actually close when the "real" world is closed?
+    // or just keep players in a queue? Maybe a config...
     /*if (sWorld->IsClosed())
     {
         SendAuthResponseError(AUTH_REJECT);
@@ -365,28 +369,16 @@ void QueueSession::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authSe
         return;
     }*/
 
-    if (authSession->RealmID != 2) // TODO
+    if (authSession->RealmID != realm.Id.Realm)
     {
         SendAuthResponseError(REALM_LIST_REALM_NOT_FOUND);
         TC_LOG_ERROR("network",
                      "WorldSocket::HandleAuthSession: Client {} requested connecting with realm id {} but this realm "
                      "has id {} set in config.",
-                     GetRemoteIpAddress().to_string(), authSession->RealmID, 2);
+                     GetRemoteIpAddress().to_string(), authSession->RealmID, realm.Id.Realm);
         DelayedCloseSocket();
         return;
     }
-
-    // Must be done before WorldSession is created
-    /*bool wardenActive = sWorld->getBoolConfig(CONFIG_WARDEN_ENABLED);
-    if (wardenActive && !ClientBuild::Platform::IsValid(account.OS))
-    {
-        SendAuthResponseError(AUTH_REJECT);
-        TC_LOG_ERROR("network",
-                     "WorldSocket::HandleAuthSession: Client {} attempted to log in using invalid client OS ({}).",
-                     address, account.OS);
-        DelayedCloseSocket();
-        return;
-    }*/
 
     // Check that Key and account name are the same on client and server
     uint8 t[4] = {0x00, 0x00, 0x00, 0x00};
@@ -471,10 +463,8 @@ void QueueSession::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authSe
     TC_LOG_DEBUG("network", "WorldSocket::HandleAuthSession: Client '{}' authenticated successfully from {}.",
                  authSession->Account, address);
 
-    // At this point, we can safely hook a successful login
-
     _authed       = true;
-    _queuePosition = 10;
+    _queuePosition = 0;
     _account       = account;
 
     SendAuthWaitQueue(_queuePosition);
@@ -524,6 +514,10 @@ void QueueSession::SendAuthWaitQueue(uint32 position)
         pkt.append(sha1.GetDigest()); // hmacsha1(ip+port) w/ sessionkey as seed
 
         SendPacket(pkt);
+
+        WorldPacket packet(SMSG_SUSPEND_COMMS, 6);
+        packet << uint32(0);
+        SendPacket(packet);
     }
     else
     {
