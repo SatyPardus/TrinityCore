@@ -38,8 +38,18 @@ template<class T>
 class Socket : public std::enable_shared_from_this<T>
 {
 public:
-    explicit Socket(tcp::socket&& socket) : _socket(std::move(socket)), _remoteAddress(_socket.remote_endpoint().address()),
-        _remotePort(_socket.remote_endpoint().port()), _readBuffer(), _closed(false), _closing(false), _isWritingAsync(false)
+    explicit Socket(tcp::socket&& socket)
+    : _socket(std::move(socket)), _remoteAddress(_socket.remote_endpoint().address()),
+      _remotePort(_socket.remote_endpoint().port()), _readBuffer(), _closed(false), _closing(false),
+      _isWritingAsync(false)
+    {
+        _readBuffer.Resize(READ_BLOCK_SIZE);
+    }
+
+    explicit Socket(boost::asio::io_context& ioContext)
+    : _socket(tcp::socket(ioContext)), _remoteAddress(),
+      _remotePort(0), _readBuffer(), _closed(false), _closing(false),
+      _isWritingAsync(false)
     {
         _readBuffer.Resize(READ_BLOCK_SIZE);
     }
@@ -171,6 +181,14 @@ protected:
                 GetRemoteIpAddress().to_string(), err.value(), err.message());
     }
 
+    tcp::socket _socket;
+
+    boost::asio::ip::address _remoteAddress;
+    uint16 _remotePort;
+
+    std::atomic<bool> _closed;
+    std::atomic<bool> _closing;
+
 private:
     void ReadHandlerInternal(boost::system::error_code error, size_t transferredBytes)
     {
@@ -255,16 +273,8 @@ private:
 
 #endif
 
-    tcp::socket _socket;
-
-    boost::asio::ip::address _remoteAddress;
-    uint16 _remotePort;
-
     MessageBuffer _readBuffer;
     std::queue<MessageBuffer> _writeQueue;
-
-    std::atomic<bool> _closed;
-    std::atomic<bool> _closing;
 
     bool _isWritingAsync;
 };
