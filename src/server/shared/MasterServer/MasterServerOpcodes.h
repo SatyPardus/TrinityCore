@@ -15,31 +15,15 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ClientSocket.h"
-#include "IoContext.h"
-#include "DeadlineTimer.h"
 
-class MasterServerClient : public ClientSocket<MasterServerClient>
+#ifndef _MASTERSERVER_OPCODES_H
+#define _MASTERSERVER_OPCODES_H
+
+enum MasterServerOpcodes : uint16
 {
-    typedef ClientSocket<MasterServerClient> MasterServerSocket;
-
-public:
-    MasterServerClient(Trinity::Asio::IoContext& ioContext);
-    ~MasterServerClient();
-
-    void Start() override;
-    bool Update() override;
-
-protected:
-    void Run();
-    void UpdateSocket();
-    void OnClose() override;
-    void ReadHandler() override;
-
-    Trinity::Asio::IoContext _ioContext;
-    std::thread* _updateThread;
-    Trinity::Asio::DeadlineTimer _updateTimer;
-    std::atomic<bool> _stopped;
-    std::atomic<bool> _connected;
-    std::atomic<bool> _connecting;
+    MASTER_MSG_NONE,
+    MASTER_MSG_PING,
+    NUM_MASTER_MSG_TYPES
 };
+
+#endif
