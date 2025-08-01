@@ -83,15 +83,15 @@ void MasterServerClient::Start()
 
     AsyncRead();
 
-    // Reset the timer to immediately start receiving.
-    _updateTimer.expires_from_now(boost::posix_time::milliseconds(100));
-    _updateTimer.async_wait([this](boost::system::error_code const&) { UpdateSocket(); });
+    OnConnected();
 }
 
 void MasterServerClient::OnClose()
 {
     _connecting = false;
     _connected  = false;
+
+    OnDisconnected();
 }
 
 void MasterServerClient::SendPacket(MasterServerPacket const& packet) {

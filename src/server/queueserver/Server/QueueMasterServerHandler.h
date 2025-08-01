@@ -23,15 +23,22 @@
 #include "MasterServerOpcodes.h"
 #include "MasterServerPacket.h"
 
-class MasterServerHandler : public MasterServerClient
+class QueueMasterServerHandler : public MasterServerClient
 {
     typedef MasterServerClient MasterServerSocket;
 
   public:
-    MasterServerHandler(Trinity::Asio::IoContext& ioContext);
+    static std::shared_ptr<QueueMasterServerHandler> _instance;
+    static std::shared_ptr<QueueMasterServerHandler> instance();
+
+    QueueMasterServerHandler(Trinity::Asio::IoContext& ioContext);
 
   protected:
+    void OnConnected() override;
+    void OnDisconnected() override;
     void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket const& packet) override;
 };
+
+#define sMasterServer QueueMasterServerHandler::instance()
 
 #endif

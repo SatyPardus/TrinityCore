@@ -15,14 +15,10 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-/// \addtogroup u2w
-/// @{
-/// \file
+#ifndef _NETWORK_OPCODES_H
+#define _NETWORK_OPCODES_H
 
-#ifndef _QUEUEOPCODES_H
-#define _QUEUEOPCODES_H
-
-enum QueueOpcodes : uint16
+enum Opcodes : uint16
 {
     CMSG_BOOTME                           = 0x001,
     CMSG_DBLOOKUP                         = 0x002,
@@ -1334,7 +1330,7 @@ enum QueueOpcodes : uint16
     CMSG_REDIRECTION_FAILED = 0x50E, // something with networking
     SMSG_SUSPEND_COMMS      = 0x50F,
     CMSG_SUSPEND_COMMS_ACK  = 0x510,
-    SMSG_RESUME_COMMS          = 0x511,
+    SMSG_RESUME_COMMS       = 0x511,
     CMSG_REDIRECTION_AUTH_PROOF             = 0x512,
     CMSG_DROP_NEW_CONNECTION                = 0x513,
     SMSG_SEND_ALL_COMBAT_LOG                = 0x514,
@@ -1354,10 +1350,13 @@ enum QueueOpcodes : uint16
     // @tswow-end
 };
 
-enum QueueOpcodeMisc : uint16
+enum OpcodeMisc : uint16
 {
     NUM_OPCODE_HANDLERS = NUM_MSG_TYPES,
     NULL_OPCODE         = 0x0000
 };
+
+typedef Opcodes OpcodeClient;
+typedef Opcodes OpcodeServer;
 
 #endif

@@ -30,7 +30,6 @@
 #include <QueueWorldPacket.h>
 #include <AuthCrypt.h>
 #include "MPSCQueue.h"
-#include "QueueOpcodes.h"
 
 using boost::asio::ip::tcp;
 class EncryptablePacket : public WorldPacket

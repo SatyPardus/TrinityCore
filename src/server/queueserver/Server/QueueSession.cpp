@@ -216,7 +216,7 @@ bool QueueSession::ReadHeaderHandler()
 QueueSession::ReadDataHandlerResult QueueSession::ReadDataHandler()
 {
     ClientPktHeader* header = reinterpret_cast<ClientPktHeader*>(_headerBuffer.GetReadPointer());
-    QueueOpcodes opcode     = static_cast<QueueOpcodes>(header->cmd);
+    Opcodes opcode          = static_cast<Opcodes>(header->cmd);
 
     WorldPacket packet(opcode, std::move(_packetBuffer));
 
@@ -257,7 +257,6 @@ QueueSession::ReadDataHandlerResult QueueSession::ReadDataHandler()
             return ReadDataHandlerResult::Error;
         }
         case CMSG_KEEP_ALIVE: // todo: handle this packet in the same way of CMSG_TIME_SYNC_RESP
-            printf("Hello keep alive\n");
             return ReadDataHandlerResult::Ok;
         case CMSG_SUSPEND_COMMS_ACK:
             return ReadDataHandlerResult::Ok;

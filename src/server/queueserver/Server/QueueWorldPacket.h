@@ -21,7 +21,7 @@
 #include "ByteBuffer.h"
 #include "Common.h"
 #include "Duration.h"
-#include "QueueOpcodes.h"
+#include "NetworkOpcodes.h"
 
 class WorldPacket : public ByteBuffer
 {

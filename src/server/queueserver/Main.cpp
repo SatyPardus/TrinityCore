@@ -46,6 +46,8 @@
 #include <thread>
 #include <atomic>
 #include <functional>
+#include <QueueSocketMgr.h>
+#include <QueueMasterServerHandler.h>
 
 using boost::asio::ip::tcp;
 using namespace boost::program_options;
@@ -59,8 +61,7 @@ namespace fs = boost::filesystem;
 #endif
 
 #if TRINITY_PLATFORM == TRINITY_PLATFORM_WINDOWS
-#    include "ServiceWin32.h"
-#include <Server/QueueSocketMgr.h>
+#include "ServiceWin32.h"
 char serviceName[]        = "queueserver";
 char serviceLongName[]    = "TrinityCore queue service";
 char serviceDescription[] = "TrinityCore World of Warcraft emulator queue service";
@@ -198,6 +199,9 @@ int main(int argc, char** argv)
     std::shared_ptr<void> dbHandle(nullptr, [](void*) { StopDB(); });
 
     std::shared_ptr<Trinity::Asio::IoContext> ioContext = std::make_shared<Trinity::Asio::IoContext>();
+
+    QueueMasterServerHandler::_instance = std::make_shared<QueueMasterServerHandler>(*ioContext);
+    sMasterServer->Connect("127.0.0.1", 5000);
 
     // Start the listening port (acceptor) for queue connections
     int32 port = sConfigMgr->GetIntDefault("RealmServerPort", 3800);

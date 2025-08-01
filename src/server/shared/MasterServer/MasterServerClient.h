@@ -15,6 +15,9 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef MASTERSERVERCLIENT_H
+#define MASTERSERVERCLIENT_H
+
 #include "ClientSocket.h"
 #include "IoContext.h"
 #include "DeadlineTimer.h"
@@ -36,7 +39,7 @@ struct MasterPktHeader
 
 #pragma pack(pop)
 
-class MasterServerClient : public ClientSocket<MasterServerClient>
+class TC_SHARED_API MasterServerClient : public ClientSocket<MasterServerClient>
 {
     typedef ClientSocket<MasterServerClient> MasterServerSocket;
 
@@ -54,6 +57,9 @@ protected:
     void OnClose() override;
     void ReadHandler() override;
     bool ReadHeaderHandler();
+
+    virtual void OnConnected() = 0;
+    virtual void OnDisconnected() = 0;
     virtual void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket const& packet) = 0;
 
     Trinity::Asio::IoContext _ioContext;
@@ -67,3 +73,5 @@ protected:
     MessageBuffer _headerBuffer;
     MessageBuffer _packetBuffer;
 };
+
+#endif

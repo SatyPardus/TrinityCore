@@ -66,6 +66,7 @@
 #include <boost/program_options.hpp>
 #include <csignal>
 #include <iostream>
+#include <WorldMasterServerHandler.h>
 
 using namespace boost::program_options;
 namespace fs = boost::filesystem;
@@ -423,6 +424,9 @@ extern int main(int argc, char** argv)
     {
         cliThread.reset(new std::thread(CliThread), &ShutdownCLIThread);
     }
+
+    WorldMasterServerHandler::_instance = std::make_shared<WorldMasterServerHandler>(*ioContext);
+    sMasterServer->Connect("127.0.0.1", 5000);
 
     WorldUpdateLoop();
 
