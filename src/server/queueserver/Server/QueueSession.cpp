@@ -55,6 +55,11 @@ void QueueSession::Start()
         std::bind(&QueueSession::CheckIpCallback, this, std::placeholders::_1)));
 }
 
+void QueueSession::OnClose()
+{
+    sQueue->RemoveSession(this);
+}
+
 bool QueueSession::Update()
 {
     using namespace std::chrono;
@@ -299,7 +304,13 @@ void QueueSession::HandleSendAuthSession()
     packet << uint32(1); // 1...31
     packet.append(_authSeed);
 
-    packet.append(Trinity::Crypto::GetRandomBytes<32>()); // new encryption seeds
+    const uint8 seed1bytes[16]{0xCC, 0x98, 0xAE, 0x04, 0xE8, 0x97, 0xEA, 0xCA,
+                               0x12, 0xDD, 0xC0, 0x93, 0x42, 0x91, 0x53, 0x57};
+    packet.append(seed1bytes, 16); // new encryption seeds
+
+    const uint8 seed2bytes[16]{0xC2, 0xB3, 0x72, 0x3C, 0xC6, 0xAE, 0xD9, 0xB5,
+                               0x34, 0x3C, 0x53, 0xEE, 0x2F, 0x43, 0x67, 0xCE};
+    packet.append(seed2bytes, 16); // new encryption seeds
 
     SendPacketAndLogOpcode(packet);
 }
@@ -463,8 +474,11 @@ void QueueSession::HandleAuthSessionCallback(std::shared_ptr<AuthSession> authSe
                  authSession->Account, address);
 
     _authed       = true;
-    _queuePosition = 0;
+    _queuePosition = 1;
     _account       = account;
+
+    // TODO determine if user needs to be sent to queue
+    sQueue->AddSession(this);
 
     SendAuthWaitQueue(_queuePosition);
 
@@ -492,33 +506,7 @@ bool QueueSession::HandlePing(WorldPacket& recvPacket)
 
 void QueueSession::SendAuthWaitQueue(uint32 position)
 {
-    if (position == 0)
-    {
-        auto addr = boost::asio::ip::make_address_v4("127.0.0.1").to_bytes();
-        WorldPacket pkt(SMSG_REDIRECT_CLIENT, 4 + 2 + 4 + 20);
-
-        uint16 port = 8085;
-
-        // pkt << ip2;                                     // inet_addr(ipstr)
-        pkt.append(addr.data(), 4);
-        pkt << uint16(port); // port
-
-        pkt << uint32(0); // token
-
-        Trinity::Crypto::HMAC_SHA1 sha1(_account.SessionKey.data(), 40);
-        // sha1.UpdateData((uint8*)&ip2, 4);
-        sha1.UpdateData(addr.data(), 4);
-        sha1.UpdateData((uint8*)&port, 2);
-        sha1.Finalize();
-        pkt.append(sha1.GetDigest()); // hmacsha1(ip+port) w/ sessionkey as seed
-
-        SendPacket(pkt);
-
-        WorldPacket packet(SMSG_SUSPEND_COMMS, 6);
-        packet << uint32(0);
-        SendPacket(packet);
-    }
-    else
+    if (position)
     {
         WorldPacket packet(SMSG_AUTH_RESPONSE, 6);
         packet << uint8(AUTH_WAIT_QUEUE);
@@ -526,6 +514,33 @@ void QueueSession::SendAuthWaitQueue(uint32 position)
         packet << uint8(0); // unk
         SendPacket(packet);
     }
+}
+
+void QueueSession::Redirect()
+{
+    auto addr = boost::asio::ip::make_address_v4("127.0.0.1").to_bytes();
+    WorldPacket pkt(SMSG_REDIRECT_CLIENT, 4 + 2 + 4 + 20);
+
+    uint16 port = 8085;
+
+    // pkt << ip2;                                     // inet_addr(ipstr)
+    pkt.append(addr.data(), 4);
+    pkt << uint16(port); // port
+
+    pkt << uint32(0); // token
+
+    Trinity::Crypto::HMAC_SHA1 sha1(_account.SessionKey.data(), 40);
+    // sha1.UpdateData((uint8*)&ip2, 4);
+    sha1.UpdateData(addr.data(), 4);
+    sha1.UpdateData((uint8*)&port, 2);
+    sha1.Finalize();
+    pkt.append(sha1.GetDigest()); // hmacsha1(ip+port) w/ sessionkey as seed
+
+    SendPacket(pkt);
+
+    WorldPacket packet(SMSG_SUSPEND_COMMS, 6);
+    packet << uint32(0);
+    SendPacket(packet);
 }
 
 void QueueSession::SendAuthResponse(uint8 code, bool shortForm, uint32 queuePos)

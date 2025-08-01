@@ -194,8 +194,12 @@ public:
     void Start() override;
     bool Update() override;
 
+    void SendAuthWaitQueue(uint32 position);
+    void Redirect();
+
 protected:
     void ReadHandler() override;
+  void OnClose() override;
 
     bool ReadHeaderHandler();
 
@@ -219,7 +223,6 @@ private:
     void SendPacketAndLogOpcode(WorldPacket const& packet);
     void SendAuthResponse(uint8 code, bool shortForm, uint32 queuePos = 0);
     void SendAuthResponseError(uint8 code);
-    void SendAuthWaitQueue(uint32 position);
 
     uint32 _queuePosition;
     uint8 _expansion;

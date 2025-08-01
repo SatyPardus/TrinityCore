@@ -15,30 +15,30 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef WORLD_MASTERSERVERHANDLER_H
-#define WORLD_MASTERSERVERHANDLER_H
+#ifndef __MASTERMGR_H
+#define __MASTERMGR_H
 
-#include "IoContext.h"
-#include "MasterServerClient.h"
-#include "MasterServerOpcodes.h"
-#include "MasterServerPacket.h"
+#include <Realm.h>
+#include "MasterSession.h"
 
-class TC_GAME_API WorldMasterServerHandler : public MasterServerClient
+typedef std::list<MasterSession*> Sessions;
+
+class MasterMgr
 {
-    typedef MasterServerClient MasterServerSocket;
-
   public:
-    static std::shared_ptr<WorldMasterServerHandler> _instance;
-    static std::shared_ptr<WorldMasterServerHandler> instance();
+    static MasterMgr* instance();
 
-    WorldMasterServerHandler(Trinity::Asio::IoContext& ioContext);
+    void AddSession(MasterSession* session);
+    bool RemoveSession(MasterSession* session);
+    Sessions GetSessions()
+    {
+        return m_sessions;
+    }
 
-  protected:
-    void OnConnected() override;
-    void OnDisconnected() override;
-    void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet) override;
+  private:
+    Sessions m_sessions;
 };
 
-#define sMasterServer WorldMasterServerHandler::instance()
+#define sMaster MasterMgr::instance()
 
 #endif

@@ -83,6 +83,8 @@ void SignalHandler(std::weak_ptr<Trinity::Asio::IoContext> ioContextRef, boost::
                    int signalNumber);
 void KeepDatabaseAliveHandler(std::weak_ptr<Trinity::Asio::DeadlineTimer> dbPingTimerRef, int32 dbPingInterval,
                               boost::system::error_code const& error);
+void UpdateQueueHandler(std::weak_ptr<Trinity::Asio::DeadlineTimer> updateQueueTimerRef, int32 updateQueueInterval,
+                        boost::system::error_code const& error);
 variables_map GetConsoleArguments(int argc, char** argv, fs::path& configFile, fs::path& configDir,
                                   std::string& winServiceAction);
 
@@ -199,6 +201,16 @@ int main(int argc, char** argv)
     SetProcessPriority("server.queueserver", sConfigMgr->GetIntDefault(CONFIG_PROCESSOR_AFFINITY, 0),
                        sConfigMgr->GetBoolDefault(CONFIG_HIGH_PRIORITY, false));
 
+    // Enabled a timed callback for the queue handling
+    int32 queueUpdateInterval = sConfigMgr->GetIntDefault("QueueUpdateInterval", 100);
+    std::shared_ptr<Trinity::Asio::DeadlineTimer> queueUpdateTimer =
+        std::make_shared<Trinity::Asio::DeadlineTimer>(*ioContext);
+    queueUpdateTimer->expires_from_now(boost::posix_time::milliseconds(queueUpdateInterval));
+    queueUpdateTimer->async_wait(std::bind(&UpdateQueueHandler,
+                                           std::weak_ptr<Trinity::Asio::DeadlineTimer>(queueUpdateTimer),
+                                           queueUpdateInterval,
+                                      std::placeholders::_1));
+
     // Enabled a timed callback for handling the database keep alive ping
     int32 dbPingInterval = sConfigMgr->GetIntDefault("MaxPingTime", 30);
     std::shared_ptr<Trinity::Asio::DeadlineTimer> dbPingTimer =
@@ -242,6 +254,7 @@ int main(int argc, char** argv)
     ioContext->run();
 
     dbPingTimer->cancel();
+    queueUpdateTimer->cancel();
 
     TC_LOG_INFO("server.queueserver", "Halting process...");
 
@@ -250,6 +263,22 @@ int main(int argc, char** argv)
     signals.cancel();
 
     return 0;
+}
+
+void UpdateQueueHandler(std::weak_ptr<Trinity::Asio::DeadlineTimer> updateQueueTimerRef, int32 updateQueueInterval,
+                              boost::system::error_code const& error)
+{
+    if (!error)
+    {
+        if (std::shared_ptr<Trinity::Asio::DeadlineTimer> updateQueueTimer = updateQueueTimerRef.lock())
+        {
+            sQueue->Update(updateQueueInterval);
+
+            updateQueueTimer->expires_from_now(boost::posix_time::milliseconds(updateQueueInterval));
+            updateQueueTimer->async_wait(
+                std::bind(&UpdateQueueHandler, updateQueueTimerRef, updateQueueInterval, std::placeholders::_1));
+        }
+    }
 }
 
 /// Initialize connection to the database

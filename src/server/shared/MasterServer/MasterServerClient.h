@@ -46,7 +46,7 @@ protected:
 
     virtual void OnConnected() = 0;
     virtual void OnDisconnected() = 0;
-    virtual void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket const& packet) = 0;
+    virtual void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet) = 0;
 
     Trinity::Asio::IoContext _ioContext;
     std::thread* _updateThread;

@@ -15,10 +15,13 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Common.h"
 #include "WorldMasterServerHandler.h"
 #include "IoContext.h"
 #include "MasterServerPacket.h"
 #include "MasterSharedDefines.h"
+#include "World.h"
+#include "Realm.h"
 
 std::shared_ptr<WorldMasterServerHandler> WorldMasterServerHandler::_instance = nullptr;
 
@@ -34,6 +37,7 @@ std::shared_ptr<WorldMasterServerHandler> WorldMasterServerHandler::instance()
 void WorldMasterServerHandler::OnConnected() {
     MasterServerPacket authPacket(MASTER_MSG_AUTHENTICATE, 1);
     authPacket << (uint8)CLIENT_TYPE_WORLD;
+    authPacket << realm.Id.Realm;
     SendPacket(authPacket);
 
     TC_LOG_INFO("session", "Connected to master server!");
@@ -43,7 +47,23 @@ void WorldMasterServerHandler::OnDisconnected() {
     
 }
 
-void WorldMasterServerHandler::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket const& packet)
+void WorldMasterServerHandler::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet)
 {
-    printf("Received %d\n", opcode);
+    if (opcode == MASTER_MSG_REQUEST_OPEN_SLOTS)
+    {
+        MasterServerPacket ackPacket = MasterServerPacket(MASTER_MSG_REQUEST_OPEN_SLOTS_ACK, 4);
+        if (sWorld->GetPlayerCount() >= sWorld->GetPlayerAmountLimit())
+        {
+            ackPacket << uint32(sWorld->GetPlayerAmountLimit() ? 0 : 100);
+        }
+        else
+        {
+            ackPacket << uint32(sWorld->GetPlayerAmountLimit() - sWorld->GetPlayerCount());
+        }
+        SendPacket(ackPacket);
+    }
+    else
+    {
+        TC_LOG_ERROR("session", "Received unhandled opcode: {}", uint32(opcode));
+    }
 }

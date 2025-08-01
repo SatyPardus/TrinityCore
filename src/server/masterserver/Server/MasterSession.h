@@ -44,9 +44,14 @@ class MasterSession : public Socket<MasterSession>
 
     void Start() override;
     bool Update() override;
+    void SendPacket(MasterServerPacket& packet);
+
+    ClientType GetType();
+    uint32 GetID();
 
   protected:
     void ReadHandler() override;
+    void OnClose() override;
 
     bool ReadHeaderHandler();
     void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet);
@@ -58,6 +63,9 @@ class MasterSession : public Socket<MasterSession>
     MessageBuffer _packetBuffer;
 
     ClientType _clientType;
+    uint32 _clientID;
+
+    uint8 _packetHeader[4];
 };
 
 #endif

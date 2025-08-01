@@ -15,34 +15,41 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __QUEUEMGR_H
-#define __QUEUEMGR_H
-
 #include <Realm.h>
+#include "MasterMgr.h"
 
-class QueueMgr
+MasterMgr* MasterMgr::instance()
 {
-public:
-    static QueueMgr* instance();
+    static MasterMgr instance;
+    return &instance;
+}
 
-    void AddSession(QueueSession* session);
-    bool RemoveSession(QueueSession* session);
-    void Update(uint32 diff);
-    void HandleOpenSlotsResponse(uint32 slots);
+void MasterMgr::AddSession(MasterSession* session)
+{
+    m_sessions.push_back(session);
+}
 
-    uint32 GetCurrentPlayerCount();
-    uint32 GetPlayerLimit();
+bool MasterMgr::RemoveSession(MasterSession* session)
+{
+    uint32 position      = 1;
+    Sessions::iterator iter = m_sessions.begin();
 
-private:
-    typedef std::list<QueueSession*> Queue;
-    Queue m_QueuedPlayer;
-    uint32 m_currentPlayerCount;
-    uint32 m_playerLimit;
+    // search to remove and count skipped positions
+    bool found = false;
 
-    uint32 _queueTimer;
-};
+    for (; iter != m_sessions.end(); ++iter, ++position)
+    {
+        if (*iter == session)
+        {
+            iter  = m_sessions.erase(iter);
+            found = true;
+            break;
+        }
+    }
 
-#define sQueue QueueMgr::instance()
-extern Realm realm;
+    // User not found, no need to update the queue
+    if (!found)
+        return false;
 
-#endif
+    return found;
+}

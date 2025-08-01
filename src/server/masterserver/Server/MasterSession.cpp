@@ -35,12 +35,24 @@
 #include "Util.h"
 #include "MasterPktHeader.h"
 #include <MasterServerPacket.h>
+#include "MasterMgr.h"
 
 using boost::asio::ip::tcp;
 
-MasterSession::MasterSession(tcp::socket&& socket) : Socket(std::move(socket)), _clientType(CLIENT_TYPE_NONE)
+MasterSession::MasterSession(tcp::socket&& socket)
+: Socket(std::move(socket)), _clientType(CLIENT_TYPE_NONE), _clientID(0), _packetHeader()
 {
     _headerBuffer.Resize(sizeof(MasterPktHeader));
+}
+
+ClientType MasterSession::GetType()
+{
+    return _clientType;
+}
+
+uint32 MasterSession::GetID()
+{
+    return _clientID;
 }
 
 void MasterSession::Start()
@@ -49,6 +61,13 @@ void MasterSession::Start()
     TC_LOG_INFO("session", "Accepted connection from {}", ip_address);
 
     AsyncRead();
+
+    sMaster->AddSession(this);
+}
+
+void MasterSession::OnClose()
+{
+    sMaster->RemoveSession(this);
 }
 
 bool MasterSession::Update()
@@ -149,7 +168,7 @@ void MasterSession::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPac
                 catch (ByteBufferException const&)
                 {
                 }
-                TC_LOG_ERROR("network", "MasterSession::OnPacketReceived(): client {} sent malformed CMSG_AUTH_SESSION",
+                TC_LOG_ERROR("network", "MasterSession::OnPacketReceived(): client {} sent malformed MASTER_MSG_AUTHENTICATE",
                              GetRemoteIpAddress().to_string());
                 CloseSocket();
                 return;
@@ -158,6 +177,42 @@ void MasterSession::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPac
             CloseSocket();
             return;
         }
+        case CLIENT_TYPE_WORLD:
+        {
+            if (opcode == MASTER_MSG_REQUEST_OPEN_SLOTS_ACK)
+            {
+                auto sessions           = sMaster->GetSessions();
+                Sessions::iterator iter = sessions.begin();
+
+                for (; iter != sessions.end(); ++iter)
+                {
+                    if ((*iter)->GetType() == CLIENT_TYPE_QUEUE && (*iter)->GetID() == this->GetID())
+                    {
+                        (*iter)->SendPacket(packet);
+                    }
+                }
+                return;
+            }
+        }
+        break;
+        case CLIENT_TYPE_QUEUE:
+        {
+            if (opcode == MASTER_MSG_REQUEST_OPEN_SLOTS)
+            {
+                auto sessions           = sMaster->GetSessions();
+                Sessions::iterator iter = sessions.begin();
+
+                for (; iter != sessions.end(); ++iter)
+                {
+                    if ((*iter)->GetType() == CLIENT_TYPE_WORLD && (*iter)->GetID() == this->GetID())
+                    {
+                        (*iter)->SendPacket(packet);
+                    }
+                }
+                return;
+            }
+        }
+        break;
     }
 
     TC_LOG_ERROR("network.opcode", "MasterSession::OnPacketReceived(): Received unhandled opcode = {}", uint32(opcode));
@@ -165,27 +220,48 @@ void MasterSession::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPac
 
 void MasterSession::HandleAuthSession(MasterServerPacket& packet)
 {
-    ClientType clientType;
+    packet >> reinterpret_cast<uint8_t&>(_clientType);
 
-    packet >> reinterpret_cast<uint8_t&>(clientType);
-
-    if (clientType == CLIENT_TYPE_AUTH)
+    if (_clientType == CLIENT_TYPE_AUTH)
     {
-        printf("Auth as CLIENT_TYPE_AUTH\n");
+        TC_LOG_INFO("session", "Accepted AUTH server");
     }
-    else if (clientType == CLIENT_TYPE_WORLD)
+    else if (_clientType == CLIENT_TYPE_WORLD)
     {
-        printf("Auth as CLIENT_TYPE_WORLD\n");
+        packet >> _clientID;
+        TC_LOG_INFO("session", "Accepted WORLD server with ID {}", _clientID);
     }
-    else if (clientType == CLIENT_TYPE_QUEUE)
+    else if (_clientType == CLIENT_TYPE_QUEUE)
     {
-        printf("Auth as CLIENT_TYPE_QUEUE\n");
+        packet >> _clientID;
+        _clientID -= 1;
+        TC_LOG_INFO("session", "Accepted QUEUE server with ID {}", _clientID);
     }
     else
     {
         TC_LOG_ERROR("network.opcode", "MasterSession::HandleAuthSession(): Client sent invalid client type = {}",
-                     uint32(clientType));
+                     uint32(_clientType));
         CloseSocket();
         return;
     }
+}
+
+void MasterSession::SendPacket(MasterServerPacket& packet)
+{
+    if (!IsOpen())
+        return;
+
+    _packetHeader[0] = 0xFF & (packet.size() >> 8);
+    _packetHeader[1] = 0xFF & packet.size();
+
+    _packetHeader[2] = 0xFF & packet.GetOpcode();
+    _packetHeader[3] = 0xFF & (packet.GetOpcode() >> 8);
+
+    MessageBuffer buffer(packet.size() + 4);
+    buffer.Write(_packetHeader, 4);
+    if (packet.size())
+    {
+        buffer.Write(packet.contents(), packet.size());
+    }
+    QueuePacket(std::move(buffer));
 }

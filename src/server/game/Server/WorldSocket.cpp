@@ -131,20 +131,17 @@ bool WorldSocket::Update()
 
 void WorldSocket::HandleSendAuthSession()
 {
-    // If direct connections are not allowed, we only allow redirections.
-    // You can only choose one, as this crashes the client if not redirected.
-    // TODO - Maybe check if the IP was redirected instead of doing a config value.
-    if (!sWorld->getBoolConfig(CONFIG_CONNECTION_ALLOW_DIRECT))
-    {
-        WorldPacket packet2(SMSG_RESUME_COMMS, 0);
-        SendPacketAndLogOpcode(packet2);
-    }
-
     WorldPacket packet(SMSG_AUTH_CHALLENGE, 40);
-    packet << uint32(1);                                    // 1...31
+    packet << uint32(1); // 1...31
     packet.append(_authSeed);
 
-    packet.append(Trinity::Crypto::GetRandomBytes<32>());               // new encryption seeds
+    const uint8 seed1bytes[16]{0xCC, 0x98, 0xAE, 0x04, 0xE8, 0x97, 0xEA, 0xCA,
+                               0x12, 0xDD, 0xC0, 0x93, 0x42, 0x91, 0x53, 0x57};
+    packet.append(seed1bytes, 16); // new encryption seeds
+
+    const uint8 seed2bytes[16]{0xC2, 0xB3, 0x72, 0x3C, 0xC6, 0xAE, 0xD9, 0xB5,
+                               0x34, 0x3C, 0x53, 0xEE, 0x2F, 0x43, 0x67, 0xCE};
+    packet.append(seed2bytes, 16); // new encryption seeds
 
     SendPacketAndLogOpcode(packet);
 }
@@ -656,6 +653,9 @@ void WorldSocket::HandleRedirectionAuthProofCallback(std::shared_ptr<Redirection
 
         LoginDatabase.Execute(stmt);
     }
+
+    WorldPacket packet2(SMSG_RESUME_COMMS, 0);
+    SendPacketAndLogOpcode(packet2);
 
     // At this point, we can safely hook a successful login
     sScriptMgr->OnAccountLogin(account.Id);

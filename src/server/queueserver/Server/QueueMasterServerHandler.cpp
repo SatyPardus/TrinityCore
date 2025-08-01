@@ -19,6 +19,7 @@
 #include "QueueMasterServerHandler.h"
 #include "MasterServerPacket.h"
 #include "MasterSharedDefines.h"
+#include "QueueMgr.h"
 
 std::shared_ptr<QueueMasterServerHandler> QueueMasterServerHandler::_instance = nullptr;
 
@@ -34,6 +35,7 @@ std::shared_ptr<QueueMasterServerHandler> QueueMasterServerHandler::instance()
 void QueueMasterServerHandler::OnConnected() {
     MasterServerPacket authPacket(MASTER_MSG_AUTHENTICATE, 1);
     authPacket << (uint8)CLIENT_TYPE_QUEUE;
+    authPacket << realm.Id.Realm;
     SendPacket(authPacket);
 
     TC_LOG_INFO("session", "Connected to master server!");
@@ -45,5 +47,15 @@ void QueueMasterServerHandler::OnDisconnected() {
 
 void QueueMasterServerHandler::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet)
 {
-    printf("Received %d\n", opcode);
+    if (opcode == MASTER_MSG_REQUEST_OPEN_SLOTS_ACK)
+    {
+        uint32 slots = 0;
+        packet >> slots;
+
+        sQueue->HandleOpenSlotsResponse(slots);
+    }
+    else
+    {
+        TC_LOG_ERROR("session", "Received unhandled opcode: {}", uint32(opcode));
+    }
 }

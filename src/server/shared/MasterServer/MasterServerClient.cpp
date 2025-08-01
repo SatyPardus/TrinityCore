@@ -95,7 +95,7 @@ void MasterServerClient::OnClose()
 }
 
 void MasterServerClient::SendPacket(MasterServerPacket const& packet) {
-    if (!IsOpen())
+    if (!IsOpen() || !_connected)
         return;
 
     _packetHeader[0] = 0xFF & (packet.size() >> 8);
