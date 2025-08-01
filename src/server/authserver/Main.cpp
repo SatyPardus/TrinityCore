@@ -255,8 +255,20 @@ int main(int argc, char** argv)
     }
 #endif
 
-    AuthMasterServerHandler::_instance = std::make_shared<AuthMasterServerHandler>(*ioContext);
-    sMasterServer->Connect("127.0.0.1", 5000);
+    if (sConfigMgr->GetBoolDefault("MasterServerEnabled", false))
+    {
+        int32 masterServerPort = sConfigMgr->GetIntDefault("MasterServerPort", 5000);
+        if (masterServerPort < 0 || masterServerPort > 0xFFFF)
+        {
+            TC_LOG_ERROR("server.queueserver", "Specified port (for master) out of allowed range (1-65535)");
+            return 1;
+        }
+
+        std::string masterServerIp = sConfigMgr->GetStringDefault("MasterServerIP", "127.0.0.1");
+
+        AuthMasterServerHandler::_instance = std::make_shared<AuthMasterServerHandler>(*ioContext);
+        sMasterServer->Connect(masterServerIp, masterServerPort);
+    }
 
     // Start the io service worker loop
     ioContext->run();

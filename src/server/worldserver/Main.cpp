@@ -425,8 +425,20 @@ extern int main(int argc, char** argv)
         cliThread.reset(new std::thread(CliThread), &ShutdownCLIThread);
     }
 
-    WorldMasterServerHandler::_instance = std::make_shared<WorldMasterServerHandler>(*ioContext);
-    sMasterServer->Connect("127.0.0.1", 5000);
+    if (sConfigMgr->GetBoolDefault("MasterServerEnabled", false))
+    {
+        int32 masterServerPort = sConfigMgr->GetIntDefault("MasterServerPort", 5000);
+        if (masterServerPort < 0 || masterServerPort > 0xFFFF)
+        {
+            TC_LOG_ERROR("server.queueserver", "Specified port (for master) out of allowed range (1-65535)");
+            return 1;
+        }
+
+        std::string masterServerIp = sConfigMgr->GetStringDefault("MasterServerIP", "127.0.0.1");
+
+        WorldMasterServerHandler::_instance = std::make_shared<WorldMasterServerHandler>(*ioContext);
+        sMasterServer->Connect(masterServerIp, masterServerPort);
+    }
 
     WorldUpdateLoop();
 

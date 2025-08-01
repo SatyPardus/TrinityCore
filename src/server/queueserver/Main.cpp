@@ -169,9 +169,6 @@ int main(int argc, char** argv)
 
     std::shared_ptr<Trinity::Asio::IoContext> ioContext = std::make_shared<Trinity::Asio::IoContext>();
 
-    QueueMasterServerHandler::_instance = std::make_shared<QueueMasterServerHandler>(*ioContext);
-    sMasterServer->Connect("127.0.0.1", 5000);
-
     // Start the listening port (acceptor) for queue connections
     int32 port = sConfigMgr->GetIntDefault("RealmServerPort", 3800);
     if (port < 0 || port > 0xFFFF)
@@ -228,6 +225,18 @@ int main(int argc, char** argv)
                                  REALM_FLAG_OFFLINE, realm.Id.Realm);
     realm.PopulationLevel = 0.0f;
     realm.Flags           = RealmFlags(realm.Flags & ~uint32(REALM_FLAG_OFFLINE));
+
+    int32 masterServerPort = sConfigMgr->GetIntDefault("MasterServerPort", 5000);
+    if (masterServerPort < 0 || masterServerPort > 0xFFFF)
+    {
+        TC_LOG_ERROR("server.queueserver", "Specified port (for master) out of allowed range (1-65535)");
+        return 1;
+    }
+
+    std::string masterServerIp = sConfigMgr->GetStringDefault("MasterServerIP", "127.0.0.1");
+
+    QueueMasterServerHandler::_instance = std::make_shared<QueueMasterServerHandler>(*ioContext);
+    sMasterServer->Connect(masterServerIp, masterServerPort);
 
     // Start the io service worker loop
     ioContext->run();

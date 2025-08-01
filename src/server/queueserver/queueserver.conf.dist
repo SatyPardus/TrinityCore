@@ -8,6 +8,7 @@
 #
 #    EXAMPLE CONFIG
 #    QUEUE SERVER SETTINGS
+#    MASTER SERVER SETTINGS
 #    MYSQL SETTINGS
 #    CRYPTOGRAPHY
 #    UPDATE SETTINGS
@@ -127,6 +128,27 @@ IPLocationFile = ""
 #
 
 AllowLoggingIPAddressesInDatabase = 1
+
+#
+###################################################################################################
+
+###################################################################################################
+# MASTER SERVER SETTINGS
+#
+#    MasterServerIP
+#        Description: The IP of the master server to connect to.
+#        Default:     "127.0.0.1" - (The current machine)
+#
+
+MasterServerIP = "127.0.0.1"
+
+#
+#    MasterServerPort
+#        Description: The port of the master server to connect to.
+#        Default:     5000
+#
+
+MasterServerPort = 5000
 
 #
 ###################################################################################################

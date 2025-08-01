@@ -8,6 +8,7 @@
 #
 #    EXAMPLE CONFIG
 #    CONNECTIONS AND DIRECTORIES
+#    MASTER SERVER SETTINGS
 #    PERFORMANCE SETTINGS
 #    SERVER LOGGING
 #    SERVER SETTINGS
@@ -230,6 +231,37 @@ MySQLExecutable = ""
 #        Default:     ""  - (Disabled)
 
 IPLocationFile = ""
+
+#
+###################################################################################################
+
+###################################################################################################
+# MASTER SERVER SETTINGS
+#
+#    MasterServerEnabled
+#        Description: Should we try a connection to the master server.
+#        Important:   If not enabled, some cross server (like QueueServer) functionality does
+#                     not work.
+#        Default:     false - (Disabled)
+#
+
+MasterServerEnabled = false
+
+#
+#    MasterServerIP
+#        Description: The IP of the master server to connect to.
+#        Default:     "127.0.0.1" - (The current machine)
+#
+
+MasterServerIP = "127.0.0.1"
+
+#
+#    MasterServerPort
+#        Description: The port of the master server to connect to.
+#        Default:     5000
+#
+
+MasterServerPort = 5000
 
 #
 ###################################################################################################
