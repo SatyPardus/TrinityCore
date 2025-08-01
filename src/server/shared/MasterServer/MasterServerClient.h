@@ -23,21 +23,7 @@
 #include "DeadlineTimer.h"
 #include "MasterServerPacket.h"
 #include "MasterServerOpcodes.h"
-
-#pragma pack(push, 1)
-
-struct MasterPktHeader
-{
-    uint16 size;
-    uint16 cmd;
-
-    bool IsValidOpcode() const
-    {
-        return cmd > MASTER_MSG_NONE && cmd < NUM_MASTER_MSG_TYPES;
-    }
-};
-
-#pragma pack(pop)
+#include "MasterPktHeader.h"
 
 class TC_SHARED_API MasterServerClient : public ClientSocket<MasterServerClient>
 {
