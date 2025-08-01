@@ -18,6 +18,7 @@
 #include "IoContext.h"
 #include "MasterServerPacket.h"
 #include "AuthMasterServerHandler.h"
+#include "MasterSharedDefines.h"
 
 std::shared_ptr<AuthMasterServerHandler> AuthMasterServerHandler::_instance = nullptr;
 
@@ -31,15 +32,19 @@ std::shared_ptr<AuthMasterServerHandler> AuthMasterServerHandler::instance()
 
 void AuthMasterServerHandler::OnConnected()
 {
-    printf("Hello master from auth\n");
+    MasterServerPacket authPacket(MASTER_MSG_AUTHENTICATE, 1);
+    authPacket << (uint8)CLIENT_TYPE_AUTH;
+    SendPacket(authPacket);
+
+    TC_LOG_INFO("session", "Connected to master server!");
 }
 
 void AuthMasterServerHandler::OnDisconnected()
 {
-    printf("Bye master from auth\n");
+    
 }
 
-void AuthMasterServerHandler::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket const& packet)
+void AuthMasterServerHandler::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet)
 {
     printf("Received %d\n", opcode);
 }

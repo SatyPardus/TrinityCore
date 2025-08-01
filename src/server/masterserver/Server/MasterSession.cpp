@@ -38,8 +38,7 @@
 
 using boost::asio::ip::tcp;
 
-MasterSession::MasterSession(tcp::socket&& socket)
-: Socket(std::move(socket))
+MasterSession::MasterSession(tcp::socket&& socket) : Socket(std::move(socket)), _clientType(CLIENT_TYPE_NONE)
 {
     _headerBuffer.Resize(sizeof(MasterPktHeader));
 }
@@ -47,7 +46,9 @@ MasterSession::MasterSession(tcp::socket&& socket)
 void MasterSession::Start()
 {
     std::string ip_address = GetRemoteIpAddress().to_string();
-    TC_LOG_ERROR("session", "Accepted connection from {}", ip_address);
+    TC_LOG_INFO("session", "Accepted connection from {}", ip_address);
+
+    AsyncRead();
 }
 
 bool MasterSession::Update()
@@ -121,7 +122,7 @@ bool MasterSession::ReadHeaderHandler()
     EndianConvertReverse(header->size);
     EndianConvert(header->cmd);
 
-    if (!(header->size >= 4 && header->size < 10240) || !header->IsValidOpcode())
+    if (!(header->size >= 0 && header->size < 10240) || !header->IsValidOpcode())
     {
         TC_LOG_ERROR("network",
                      "MasterSession::ReadHeaderHandler(): client {} sent malformed packet (size: {}, cmd: {})",
@@ -129,11 +130,62 @@ bool MasterSession::ReadHeaderHandler()
         return false;
     }
 
-    header->size -= sizeof(header->cmd);
     _packetBuffer.Resize(header->size);
     return true;
 }
 
-void MasterSession::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket const& packet) {
+void MasterSession::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet) {
+    switch (_clientType)
+    {
+        case CLIENT_TYPE_NONE:
+        {
+            if (opcode == MASTER_MSG_AUTHENTICATE)
+            {
+                try
+                {
+                    HandleAuthSession(packet);
+                    return;
+                }
+                catch (ByteBufferException const&)
+                {
+                }
+                TC_LOG_ERROR("network", "MasterSession::OnPacketReceived(): client {} sent malformed CMSG_AUTH_SESSION",
+                             GetRemoteIpAddress().to_string());
+                CloseSocket();
+                return;
+            }
+            TC_LOG_ERROR("network.opcode", "MasterSession::OnPacketReceived(): Client not authed opcode = {}", uint32(opcode));
+            CloseSocket();
+            return;
+        }
+    }
 
+    TC_LOG_ERROR("network.opcode", "MasterSession::OnPacketReceived(): Received unhandled opcode = {}", uint32(opcode));
+}
+
+void MasterSession::HandleAuthSession(MasterServerPacket& packet)
+{
+    ClientType clientType;
+
+    packet >> reinterpret_cast<uint8_t&>(clientType);
+
+    if (clientType == CLIENT_TYPE_AUTH)
+    {
+        printf("Auth as CLIENT_TYPE_AUTH\n");
+    }
+    else if (clientType == CLIENT_TYPE_WORLD)
+    {
+        printf("Auth as CLIENT_TYPE_WORLD\n");
+    }
+    else if (clientType == CLIENT_TYPE_QUEUE)
+    {
+        printf("Auth as CLIENT_TYPE_QUEUE\n");
+    }
+    else
+    {
+        TC_LOG_ERROR("network.opcode", "MasterSession::HandleAuthSession(): Client sent invalid client type = {}",
+                     uint32(clientType));
+        CloseSocket();
+        return;
+    }
 }

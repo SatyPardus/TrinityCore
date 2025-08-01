@@ -23,6 +23,7 @@ enum MasterServerOpcodes : uint16
 {
     MASTER_MSG_NONE,
     MASTER_MSG_PING,
+    MASTER_MSG_AUTHENTICATE,
     NUM_MASTER_MSG_TYPES
 };
 

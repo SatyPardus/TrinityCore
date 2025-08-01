@@ -36,7 +36,7 @@ class AuthMasterServerHandler : public MasterServerClient
   protected:
     void OnConnected() override;
     void OnDisconnected() override;
-    void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket const& packet) override;
+    void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet) override;
 };
 
 #define sMasterServer AuthMasterServerHandler::instance()

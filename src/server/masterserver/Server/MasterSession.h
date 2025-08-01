@@ -29,6 +29,7 @@
 #include "Socket.h"
 #include "MasterServerOpcodes.h"
 #include "MasterServerPacket.h"
+#include "MasterSharedDefines.h"
 
 using boost::asio::ip::tcp;
 
@@ -48,11 +49,15 @@ class MasterSession : public Socket<MasterSession>
     void ReadHandler() override;
 
     bool ReadHeaderHandler();
-    void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket const& packet);
+    void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet);
 
   private:
+    void HandleAuthSession(MasterServerPacket& packet);
+
     MessageBuffer _headerBuffer;
     MessageBuffer _packetBuffer;
+
+    ClientType _clientType;
 };
 
 #endif

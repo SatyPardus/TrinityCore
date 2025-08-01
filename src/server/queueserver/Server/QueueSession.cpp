@@ -46,7 +46,7 @@ QueueSession::QueueSession(tcp::socket&& socket)
 void QueueSession::Start()
 {
     std::string ip_address = GetRemoteIpAddress().to_string();
-    TC_LOG_ERROR("session", "Accepted connection from {}", ip_address);
+    TC_LOG_DEBUG("session", "Accepted connection from {}", ip_address);
 
     LoginDatabasePreparedStatement* stmt = LoginDatabase.GetPreparedStatement(LOGIN_SEL_IP_INFO);
     stmt->setString(0, ip_address);

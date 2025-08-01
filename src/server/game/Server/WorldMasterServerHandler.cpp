@@ -18,6 +18,7 @@
 #include "WorldMasterServerHandler.h"
 #include "IoContext.h"
 #include "MasterServerPacket.h"
+#include "MasterSharedDefines.h"
 
 std::shared_ptr<WorldMasterServerHandler> WorldMasterServerHandler::_instance = nullptr;
 
@@ -31,11 +32,15 @@ std::shared_ptr<WorldMasterServerHandler> WorldMasterServerHandler::instance()
 }
 
 void WorldMasterServerHandler::OnConnected() {
-    printf("Hello master from world\n");
+    MasterServerPacket authPacket(MASTER_MSG_AUTHENTICATE, 1);
+    authPacket << (uint8)CLIENT_TYPE_WORLD;
+    SendPacket(authPacket);
+
+    TC_LOG_INFO("session", "Connected to master server!");
 }
 
 void WorldMasterServerHandler::OnDisconnected() {
-    printf("Bye master from world\n");
+    
 }
 
 void WorldMasterServerHandler::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket const& packet)

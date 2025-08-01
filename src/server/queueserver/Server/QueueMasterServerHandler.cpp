@@ -18,6 +18,7 @@
 #include "IoContext.h"
 #include "QueueMasterServerHandler.h"
 #include "MasterServerPacket.h"
+#include "MasterSharedDefines.h"
 
 std::shared_ptr<QueueMasterServerHandler> QueueMasterServerHandler::_instance = nullptr;
 
@@ -31,14 +32,18 @@ std::shared_ptr<QueueMasterServerHandler> QueueMasterServerHandler::instance()
 }
 
 void QueueMasterServerHandler::OnConnected() {
-    printf("Hello master from queue\n");
+    MasterServerPacket authPacket(MASTER_MSG_AUTHENTICATE, 1);
+    authPacket << (uint8)CLIENT_TYPE_QUEUE;
+    SendPacket(authPacket);
+
+    TC_LOG_INFO("session", "Connected to master server!");
 }
 
 void QueueMasterServerHandler::OnDisconnected() {
-    printf("Bye master from queue\n");
+    
 }
 
-void QueueMasterServerHandler::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket const& packet)
+void QueueMasterServerHandler::OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet)
 {
     printf("Received %d\n", opcode);
 }

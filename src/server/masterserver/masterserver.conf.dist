@@ -51,9 +51,9 @@ MaxPingTime = 30
 #
 #    MasterServerPort
 #        Description: TCP port to reach the master server.
-#        Default:     3800
+#        Default:     5000
 
-MasterServerPort = 3800
+MasterServerPort = 5000
 
 #
 #

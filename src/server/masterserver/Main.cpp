@@ -167,7 +167,7 @@ int main(int argc, char** argv)
     std::shared_ptr<Trinity::Asio::IoContext> ioContext = std::make_shared<Trinity::Asio::IoContext>();
 
     // Start the listening port (acceptor) for queue connections
-    int32 port = sConfigMgr->GetIntDefault("MasterServerPort", 4000);
+    int32 port = sConfigMgr->GetIntDefault("MasterServerPort", 5000);
     if (port < 0 || port > 0xFFFF)
     {
         TC_LOG_ERROR("server.masterserver", "Specified port out of allowed range (1-65535)");

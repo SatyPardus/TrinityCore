@@ -15,30 +15,15 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef QUEUE_MASTERSERVERHANDLER_H
-#define QUEUE_MASTERSERVERHANDLER_H
+#ifndef MASTER_SHAREDDEFINES_H
+#define MASTER_SHAREDDEFINES_H
 
-#include "IoContext.h"
-#include "MasterServerClient.h"
-#include "MasterServerOpcodes.h"
-#include "MasterServerPacket.h"
-
-class QueueMasterServerHandler : public MasterServerClient
+enum ClientType : uint8
 {
-    typedef MasterServerClient MasterServerSocket;
-
-  public:
-    static std::shared_ptr<QueueMasterServerHandler> _instance;
-    static std::shared_ptr<QueueMasterServerHandler> instance();
-
-    QueueMasterServerHandler(Trinity::Asio::IoContext& ioContext);
-
-  protected:
-    void OnConnected() override;
-    void OnDisconnected() override;
-    void OnPacketReceived(MasterServerOpcodes opcode, MasterServerPacket& packet) override;
+    CLIENT_TYPE_NONE = 0,
+    CLIENT_TYPE_AUTH = 1,
+    CLIENT_TYPE_WORLD = 2,
+    CLIENT_TYPE_QUEUE = 3
 };
-
-#define sMasterServer QueueMasterServerHandler::instance()
 
 #endif
