@@ -25,6 +25,11 @@ QueueMgr* QueueMgr::instance()
     return &instance;
 }
 
+void QueueMgr::Initialize(std::string serverIp, uint16 serverPort) {
+    _serverIp = serverIp;
+    _serverPort = serverPort;
+}
+
 uint32 QueueMgr::GetCurrentPlayerCount()
 {
     return m_currentPlayerCount;
@@ -61,17 +66,8 @@ bool QueueMgr::RemoveSession(QueueSession* session)
     if (!found)
         return false;
 
-    // accept first in queue
-    if ((!m_playerLimit || m_currentPlayerCount < m_playerLimit) && !m_QueuedPlayer.empty())
-    {
-        QueueSession* pop_sess = m_QueuedPlayer.front();
-        pop_sess->Redirect();
-        m_QueuedPlayer.pop_front();
-
-        // update iter to point first queued socket or end() if queue is empty now
-        iter     = m_QueuedPlayer.begin();
-        position = 1;
-    }
+    iter     = m_QueuedPlayer.begin();
+    position = 1;
 
     // update position from iter to end()
     // iter point to first not updated socket, position store new position
@@ -104,8 +100,8 @@ void QueueMgr::HandleOpenSlotsResponse(uint32 slots)
     for (; iter != m_QueuedPlayer.end() && slots; --slots)
     {
         Queue::iterator current = iter++;
-        (*current)->Redirect();        // Safe: still valid before erase
-        m_QueuedPlayer.erase(current); // Safe: we already advanced iter
+        (*current)->Redirect(_serverIp, _serverPort);
+        m_QueuedPlayer.erase(current);
     }
 
     if (!m_QueuedPlayer.empty())

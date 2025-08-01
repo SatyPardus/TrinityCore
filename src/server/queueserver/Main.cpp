@@ -167,6 +167,15 @@ int main(int argc, char** argv)
     if (!StartDB())
         return 1;
 
+    int32 redirectPort = sConfigMgr->GetIntDefault("RedirectServerPort", 8085);
+    if (redirectPort < 0 || redirectPort > 0xFFFF)
+    {
+        TC_LOG_ERROR("server.queueserver", "Specified redirect port out of allowed range (1-65535)");
+        return 1;
+    }
+
+    sQueue->Initialize(sConfigMgr->GetStringDefault("RedirectServerIP", "127.0.0.1"), uint16(redirectPort));
+
     std::shared_ptr<void> dbHandle(nullptr, [](void*) { StopDB(); });
 
     std::shared_ptr<Trinity::Asio::IoContext> ioContext = std::make_shared<Trinity::Asio::IoContext>();
@@ -175,7 +184,7 @@ int main(int argc, char** argv)
     int32 port = sConfigMgr->GetIntDefault("RealmServerPort", 3800);
     if (port < 0 || port > 0xFFFF)
     {
-        TC_LOG_ERROR("server.queueserver", "Specified port out of allowed range (1-65535)");
+        TC_LOG_ERROR("server.queueserver", "Specified realm port out of allowed range (1-65535)");
         return 1;
     }
 

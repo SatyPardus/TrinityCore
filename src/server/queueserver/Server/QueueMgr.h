@@ -25,6 +25,7 @@ class QueueMgr
 public:
     static QueueMgr* instance();
 
+    void Initialize(std::string serverIp, uint16 serverPort);
     void AddSession(QueueSession* session);
     bool RemoveSession(QueueSession* session);
     void Update(uint32 diff);
@@ -38,6 +39,9 @@ private:
     Queue m_QueuedPlayer;
     uint32 m_currentPlayerCount;
     uint32 m_playerLimit;
+
+    std::string _serverIp;
+    uint16 _serverPort;
 
     uint32 _queueTimer;
 };

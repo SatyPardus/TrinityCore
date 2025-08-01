@@ -50,6 +50,15 @@ LogsDir = ""
 MaxPingTime = 30
 
 #
+#    QueueUpdateInterval
+#        Description: Interval (in milliseconds) to update the queue at.
+#        Important:   This requests the current free player count from the realm
+#                     with the same ID.
+#        Default:     100
+
+QueueUpdateInterval = 100
+
+#
 #    RealmServerPort
 #        Description: TCP port to reach the queue server.
 #        Default:     3800
@@ -63,6 +72,20 @@ RealmServerPort = 3800
 #        Default:     1
 
 RealmID = 1
+
+#
+#    RedirectServerIP
+#        Description: IP of the server to redirect to.
+#        Default:     "127.0.0.1"
+
+RedirectServerIP = "127.0.0.1"
+
+#
+#    RedirectServerPort
+#        Description: Port of the server to redirect to.
+#        Default:     8085
+
+RedirectServerPort = 8085
 
 #
 #

@@ -516,12 +516,12 @@ void QueueSession::SendAuthWaitQueue(uint32 position)
     }
 }
 
-void QueueSession::Redirect()
+void QueueSession::Redirect(std::string serverIp, uint16 serverPort)
 {
-    auto addr = boost::asio::ip::make_address_v4("127.0.0.1").to_bytes();
+    auto addr = boost::asio::ip::make_address_v4(serverIp).to_bytes();
     WorldPacket pkt(SMSG_REDIRECT_CLIENT, 4 + 2 + 4 + 20);
 
-    uint16 port = 8085;
+    uint16 port = serverPort;
 
     // pkt << ip2;                                     // inet_addr(ipstr)
     pkt.append(addr.data(), 4);

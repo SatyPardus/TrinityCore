@@ -195,7 +195,7 @@ public:
     bool Update() override;
 
     void SendAuthWaitQueue(uint32 position);
-    void Redirect();
+    void Redirect(std::string serverIp, uint16 serverPort);
 
 protected:
     void ReadHandler() override;
