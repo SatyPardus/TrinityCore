@@ -98,6 +98,7 @@
 #include "WeatherMgr.h"
 #include "WhoListStorage.h"
 #include "WorldSession.h"
+#include "Opcodes.h"
 #include <boost/interprocess/ipc/message_queue.hpp>
 
 #include <boost/asio/ip/address.hpp>

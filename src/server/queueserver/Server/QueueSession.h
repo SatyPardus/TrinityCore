@@ -27,7 +27,7 @@
 #include "Socket.h"
 #include "SRP6.h"
 #include <boost/asio/ip/tcp.hpp>
-#include <QueueWorldPacket.h>
+#include <WorldPacket.h>
 #include <AuthCrypt.h>
 #include "MPSCQueue.h"
 

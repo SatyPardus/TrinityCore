@@ -19,7 +19,7 @@
 #define TRINITYCORE_WORLDPACKET_H
 
 #include "Common.h"
-#include "Opcodes.h"
+#include "NetworkOpcodes.h"
 #include "ByteBuffer.h"
 #include "Duration.h"
 
