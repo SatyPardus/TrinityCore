@@ -448,6 +448,9 @@ extern int main(int argc, char** argv)
     // 1 - shutdown at error
     // 2 - restart command used, this code can be used by restarter for restart Trinityd
 
+    sMasterServer->CloseSocket();
+    delete &WorldMasterServerHandler::_instance;
+
     return World::GetExitCode();
 }
 

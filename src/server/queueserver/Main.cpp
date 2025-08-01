@@ -86,37 +86,6 @@ void KeepDatabaseAliveHandler(std::weak_ptr<Trinity::Asio::DeadlineTimer> dbPing
 variables_map GetConsoleArguments(int argc, char** argv, fs::path& configFile, fs::path& configDir,
                                   std::string& winServiceAction);
 
-std::atomic<bool> keep_running{true};
-
-void run_message_loop(std::function<void(int)> on_message)
-{
-    using namespace boost::interprocess;
-    message_queue mq(open_or_create, "game_event_queue", 100, sizeof(int));
-
-    while (keep_running)
-    {
-        int msg;
-        unsigned int priority;
-        message_queue::size_type received_size;
-
-        try
-        {
-            if (mq.try_receive(&msg, sizeof(msg), received_size, priority))
-            {
-                on_message(msg);
-            }
-            else
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        }
-        catch (interprocess_exception& ex)
-        {
-            std::cerr << "IPC Error: " << ex.what() << "\n";
-        }
-    }
-}
-
 int main(int argc, char** argv)
 {
     // @tswow-begin
@@ -260,8 +229,6 @@ int main(int argc, char** argv)
     realm.PopulationLevel = 0.0f;
     realm.Flags           = RealmFlags(realm.Flags & ~uint32(REALM_FLAG_OFFLINE));
 
-    std::thread receiver_thread(run_message_loop, [](int msg) { std::cout << "Async received: " << msg << "\n"; });
-
     // Start the io service worker loop
     ioContext->run();
 
@@ -269,9 +236,9 @@ int main(int argc, char** argv)
 
     TC_LOG_INFO("server.queueserver", "Halting process...");
 
+    sMasterServer->CloseSocket();
+    delete &QueueMasterServerHandler::_instance;
     signals.cancel();
-    keep_running = false;
-    receiver_thread.join();
 
     return 0;
 }
@@ -294,11 +261,11 @@ bool StartDB()
     realm.Id.Realm = sConfigMgr->GetIntDefault("RealmID", 0);
     if (!realm.Id.Realm)
     {
-        TC_LOG_ERROR("server.worldserver", "Realm ID not defined in configuration file");
+        TC_LOG_ERROR("server.queueserver", "Realm ID not defined in configuration file");
         return false;
     }
 
-    TC_LOG_INFO("server.worldserver", "Realm running as realm ID {}", realm.Id.Realm);
+    TC_LOG_INFO("server.queueserver", "Realm running as realm ID {}", realm.Id.Realm);
     return true;
 }
 

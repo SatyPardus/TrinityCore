@@ -49,6 +49,7 @@
 #include <openssl/opensslv.h>
 #include <iostream>
 #include <csignal>
+#include <AuthMasterServerHandler.h>
 
 using boost::asio::ip::tcp;
 using namespace boost::program_options;
@@ -254,6 +255,9 @@ int main(int argc, char** argv)
     }
 #endif
 
+    AuthMasterServerHandler::_instance = std::make_shared<AuthMasterServerHandler>(*ioContext);
+    sMasterServer->Connect("127.0.0.1", 5000);
+
     // Start the io service worker loop
     ioContext->run();
 
@@ -262,6 +266,8 @@ int main(int argc, char** argv)
 
     TC_LOG_INFO("server.authserver", "Halting process...");
 
+    sMasterServer->CloseSocket();
+    delete &AuthMasterServerHandler::_instance;
     signals.cancel();
 
     return 0;
