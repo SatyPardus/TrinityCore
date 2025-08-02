@@ -62,33 +62,6 @@ void QueueSession::OnClose()
 
 bool QueueSession::Update()
 {
-    using namespace std::chrono;
-
-    if (_authed)
-    {
-        if (_LastPingTime == steady_clock::time_point())
-        {
-            _LastPingTime = steady_clock::now();
-        }
-        else
-        {
-            steady_clock::time_point now = steady_clock::now();
-
-            steady_clock::duration diff = now - _LastPingTime;
-
-            if (diff >= seconds(1))
-            {
-                _LastPingTime = now;
-                if (_queuePosition > 0)
-                {
-                    _queuePosition--;
-                    TC_LOG_ERROR("session", "Queue position {}", _queuePosition);
-                    SendAuthWaitQueue(_queuePosition);
-                }
-            }
-        }
-    }
-
     EncryptablePacket* queued;
     if (_bufferQueue.Dequeue(queued))
     {
